@@ -58,13 +58,5 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 ## Usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
-  (1) About        explain functionality
-	(2) Help         information on how to use this script
-	(3) Install      install all script files
-	(4) Update       check for script updates
-  (5) Edit         edit the default list of log records to exclude from displaying in the UI
-  (6) Add          select this only if you removed the filtering capabilities for some reason
-  (7) Remove       remove the filtering capabilities temporarily
-  (8) Debug        enable verbose logging for troubleshooting
-  (9) Uninstall    completely remove HideUIMenus from the router
-  (e) Exit         exit without doing anything
+<img width="835" height="205" alt="image" src="https://github.com/user-attachments/assets/ce55c64d-ba22-4ce8-901c-60f3071730c8" />
+
