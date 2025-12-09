@@ -1,0 +1,639 @@
+#!/bin/sh
+#----------------------------------------------------------------#
+#   __  __           _ ____            _             _   _ ___   #
+#  |  \/  | ___   __| / ___| _   _ ___| | ___   __ _| | | |_ _|  #
+#  | |\/| |/ _ \ / _` \___ \| | | / __| |/ _ \ / _` | | | || |   # 
+#  | |  | | (_) | (_| |___) | |_| \__ \ | (_) | (_| | |_| || |   # 
+#  |_|  |_|\___/ \__,_|____/ \__, |___/_|\___/ \__, |\___/|___|  #
+#                            |___/             |___/             #           
+#----------------------------------------------------------------#
+
+#----------------------------------------------------------------#
+# shellcheck disable=SC1091
+# shellcheck disable=SC1234
+# shellcheck disable=SC2034
+# shellcheck disable=SC2164
+# shellcheck disable=SC3037
+# shellcheck disable=SC3043
+#----------------------------------------------------------------#
+
+# Author:       kstamand
+# Date:         2025-12-07
+# Synopsis:     add filtering functionality to routers system log page
+# Description:  Installs/uninstals filtering capabilities to the router System Log UI page
+# Reference:    This script is based on Asuswrt-merlin third party addon api
+#+      https://github.com/RMerl/asuswrt-merlin/wiki/Addons-API/90b49e443b8ce64e82c0970237199deff46869f5
+# Documentation: https://github.com/kstamand/himodsyslogui
+# Credits:      Code in this script modeled after FlexQoS (Dave14305) and SpdMerlin (Jack Yaz)
+#----------------------------------------------------------------------------------------------------#
+
+# AsusWRT Merlin Addon API helper functions
+. /usr/sbin/helper.sh
+
+### Start of Script Variables
+readonly SCRIPT_NAME="modsyslogui"
+readonly SCRIPT_VERSION="v1.0.0"
+readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
+readonly SCRIPT_NAME_DISPLAY="ModSysloUI"
+readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
+readonly ADDON_DIR="/jffs/addons"
+readonly SCRIPT_NAME_DIR="${ADDON_DIR}/${SCRIPT_NAME}"
+readonly SCRIPT_INSTALL_PATH="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}"
+readonly SCRIPT_AUTOSTART_PATH="${SCRIPT_NAME_DIR}/autostart_${SCRIPT_NAME}"
+readonly SETTINGS_FILE="/jffs/addons/custom_settings.txt"
+readonly DEFAULT_LOGFILTER_PATH="/www/ajax/logFilter.json"
+readonly CUSTOM_LOGFILTER_PATH="${SCRIPT_NAME_DIR}/logFilter.json"
+readonly DEFAULT_SYSLOG_ASP_FILE="/www/Main_LogStatus_Content.asp"
+readonly CUSTOM_SYSLOG_ASP_FILE="${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
+readonly CUSTOM_FUNCTION_FILE="${SCRIPT_NAME_DIR}/customfunction.js"
+readonly CUSTOM_LOGIC_FILE="${SCRIPT_NAME_DIR}/customlogic.js"
+readonly CUSTOM_PHP_FILE="${SCRIPT_NAME_DIR}/customui.php"
+
+RED_TEXT='\033[31m'
+GREEN_TEXT='\033[32m'
+YELLOW_TEXT='\033[33m'
+MAGENTA_TEXT='\033[35m'
+CYAN_TEXT='\033[36m'
+RESET='\033[0m'
+### End of Script Variables
+
+# -x is a flag to show verbose script output for debugging purposes only
+Debug(){
+    clear
+    set -x
+    Yellow "Debugging enabled ..."
+}
+
+Logmsg() {
+    # Parameter options - $1 = message
+    if [ "$#" = "0" ]; then #if no parameters passed, then just return
+        return
+    fi
+    logger -t "${SCRIPT_NAME_DISPLAY}" "$*" # display any/all parameters passed
+} # end of Logmsg
+
+Red() {
+    printf -- '\033[1;31m%s\033[0m\n' "${1}"
+}
+
+Green() {
+    printf -- '\033[1;32m%s\033[0m\n' "${1}"
+}
+
+Yellow() {
+    printf -- '\033[1;33m%s\033[0m\n' "${1}"
+}
+
+Magenta() {
+    printf -- '\033[1;35m%s\033[0m\n' "${1}"
+}
+
+About() {
+    Scriptinfo
+    echo -e "${CYAN_TEXT}"
+    cat <<EOF
+License
+${SCRIPT_NAME_DISPLAY} is free to use under the GNU General Public License, version 3 (GPL-3.0).
+https://opensource.org/licenses/GPL-3.0
+
+For discussion visit this thread:
+https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=8
+https://github.com/kstamand/ModSyloogUI(Source Code)
+
+About
+This script adds filtering capabilities (Show All, Include only, Exclude strings) to the routers System Log web page
+EOF
+echo -e "${RESET}"
+} # end of about() information
+
+Show_Help() {
+    echo -e "${CYAN_TEXT}"
+    cat <<EOF
+The default filtering capabilities on the Systme Log page of the router is limited to hardcoded test strings
+in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
+
+This script also updates the System Log page of the Router UI to include dynamic filtering capabilities for:
+   - Include all log records, which is the default function (Include all honors exclusions noted in logFilter.json)
+   - Include only log records containing the string or strings of text you chose (separate each by a comma)
+     Example - to include all Skynet and Diversion log records, enter Skynet,Diversion (no spaces after comma)
+   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)
+     Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
+
+For reference, the following are the default contents of the "logFilter.json" file":
+    {
+    "filter": [
+    "already exist in UDB, can't add it",
+    "not mesh client, can't update it's ip",
+    "not exist in UDB, can't update it",
+    "send_redir_page"
+    ]
+    }
+EOF
+echo -e "${RESET}"
+} # end Show_Help ()
+
+Cyan() {
+    printf -- '\033[1;36m%s\033[0m\n' "${1}"
+}
+
+Scriptinfo() {
+    # Version header used in interactive sessions
+    [ "${mode}" = "interactive" ] || return
+    printf "\n"
+    Green "${SCRIPT_NAME_DISPLAY} ${SCRIPT_VERSION}"
+    printf "\n"
+} # end of Scriptinfo ()
+
+Press_Enter(){
+    [ "${mode}" = "interactive" ] || return
+    printf "\n"
+    while true; do
+        printf "Press enter to continue..."
+        read -r "key"
+        case "${key}" in
+            *)
+                break
+            ;;
+        esac
+    done
+    return 0
+} # end of Press_Enter()
+
+Check_Firmware() {
+    Green "   - Checking firmware support"
+    if ! nvram get rc_support | grep -q am_addons; then
+        Red "${SCRIPT_NAME_DISPLAY} requires ASUSWRT-Merlin Addon API support. Installation aborted."
+        return 1
+    fi
+    if [ "$(nvram get jffs2_scripts)" != "1" ]; then
+        Red "   - Enable JFFS custom scripts and configs is not enabled. Please enable it in the GUI. Aborting installation."
+        return 1
+    fi
+} # end of Check_Firmware()
+
+Download_File() {
+    # Parameter options: $1 = file name to download, $2 = full path + filename to download to
+    # Download file from Github once to a temp location. If the same as the destination file, don't replace.
+    # Otherwise move it from the temp location to the destination.
+    if curl -fsL --retry 3 --connect-timeout 3 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
+        if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
+            mv -f "/tmp/${1}" "${2}"
+            Green "   - Installed $(basename "${1}")"
+        else
+            Yellow "  File $(basename "${2}") is already up-to-date"
+            rm -f "/tmp/${1}" 2>/dev/null
+        fi
+    else
+        Red "   [ERROR] Install $(basename "${1}") failed"
+        exit 5
+    fi
+} # end of Download_File()
+
+Mod_Startup() {
+    # Parameters: $1 - install or uninstall
+    case $1 in
+        'install')
+            Green "   - Adding ${SCRIPT_NAME} services-start line"
+            # check if a services-start file exists and process as follows
+			if [ -f /jffs/scripts/services-start ]; then
+                # delete any existing modsyslogui lines just in case
+                sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+                echo "$SCRIPT_AUTOSTART_PATH # added by $SCRIPT_NAME" >> /jffs/scripts/services-start
+			# a service-event file did not exist, so create one
+            else
+				echo "#!/bin/sh" > /jffs/scripts/services-start
+                echo " " >> /jffs/scripts/services-start
+                echo "$SCRIPT_AUTOSTART_PATH # added by $SCRIPT_NAME" >> /jffs/scripts/services-start
+				chmod 0755 /jffs/scripts/services-start
+			fi
+        ;;
+        'uninstall')
+			Green "   - Removing ${SCRIPT_NAME} from services-start"
+            # check if services-start line exists and if so, remove any HideUIMenus lines found
+            if [ -f /jffs/scripts/services-start ]; then
+				STARTUPLINECOUNT=$(grep -c "${SCRIPT_INSTALL_PATH}" /jffs/scripts/services-start)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+				fi
+			fi
+        ;;
+    esac
+} # end of Auto_Start()
+
+Mod_Syslog_Asp() {
+    # Parameters: $1 install or uninstall
+    case $1 in
+        install)
+        if [ -f "$SCRIPT_AUTOSTART_PATH" ]; then
+            Green "   - Adding filtering capabilities to System Log UI page"
+            # delete any existing inserted custom code that may be there (delete everything between //++ and //++)
+            # customxxx files begin with //+++ Start ... and end with //+++ End ..., where // is a comment
+            sed -i '/[/][+]/,/[/][+]/d' $CUSTOM_SYSLOG_ASP_FILE
+            # insert filter event handler (submit button on System Log UI)
+            #sed -i "/applySettings()/r $CUSTOM_FUNCTION_FILE" -e //N $CUSTOM_SYSLOG_ASP_FILE
+            sed -i "/applySettings(){/i $(cat $CUSTOM_FUNCTION_FILE)" $CUSTOM_SYSLOG_ASP_FILE
+            # insert custom filtering logic
+            sed -i "/var _string/r $CUSTOM_LOGIC_FILE" $CUSTOM_SYSLOG_ASP_FILE
+            # insert custom webpage phb code
+            sed -i "/div class=\"apply_gen\"/r $CUSTOM_PHP_FILE" $CUSTOM_SYSLOG_ASP_FILE
+
+            # mount the customized web page with filtering capabilities added
+            mount -o bind $CUSTOM_SYSLOG_ASP_FILE $DEFAULT_SYSLOG_ASP_FILE
+        else
+            Red "[ERROR] $SCRIPT_AUTOSTART_PATH is missing"
+            exit 5
+        fi
+        ;;
+        uninstall)
+            Green "   - Removing filtering capabilities from System Log UI page"
+            # delete everything between the strings //++ (e.g., //+++ Start ... and //+++ End ...)
+            sed -i '/[/][+]/,/[/][+]/d' $CUSTOM_SYSLOG_ASP_FILE
+
+            # unmount the customized web page and fall back to the default with no filtering
+            umount $DEFAULT_SYSLOG_ASP_FILE 2>/dev/null
+        ;;
+    esac
+} # end of Mod_Syslog_Asp()
+
+Setup_Aliases() {
+    # Parameters: $1 - install or uninstall
+    # shortcuts to launching script
+    case $1 in
+        'install')
+            # remove shell alias
+            local cmdline
+            if [ -d /opt/bin ]; then
+                # Entware is installed, so setup link to /opt/bin
+                Green "   - Adding ${SCRIPT_NAME} link in Entware /opt/bin"
+                ln -sf "${SCRIPT_INSTALL_PATH}" "/opt/bin/${SCRIPT_NAME}"
+            else
+                # Setup shell alias
+                Green "   -  Adding ${SCRIPT_NAME} alias in profile.add"
+                sed -i "/alias ${SCRIPT_NAME}/d" /jffs/configs/profile.add 2>/dev/null
+                cmdline="alias ${SCRIPT_NAME}=\"sh ${SCRIPT_INSTALL_PATH}\" # ${SCRIPT_NAME} Addition"
+                echo "${cmdline}" >> /jffs/configs/profile.add
+            fi
+        ;;
+        'uninstall')
+            # remove alias from profile.add. Brute force, meaning not checking to see if exists first, just assume and delete
+            if [ -L /opt/bin/${SCRIPT_NAME} ]; then
+                # Entware is installed, so setup link to /opt/bin
+                Green "   - Deleting ${SCRIPT_NAME} link in Entware /opt/bin"
+                rm "/opt/bin/${SCRIPT_NAME}"
+            else
+                # Remove alias from profile.add
+                if [ -f /jffs/configs/profile.add ]; then
+                    STARTUPLINECOUNT=$(grep -c '# '"$SCRIPT_NAME" /jffs/configs/profile.add)
+                    if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+                        Green "   -  Deleting ${SCRIPT_NAME} alias in profile.add"
+                        sed -i -e '/# '"$SCRIPT_NAME"'/d' /jffs/configs/profile.add
+                    fi
+                fi
+            fi  
+        ;;
+    esac
+} #  end of Setup_Aliases()
+
+Custom_Settings(){
+    # Parameters: $1 - install or uninstall
+    # Add / delete a name space in the Asuswrt third party addons custome_settings.txt file
+    case $1 in
+        install)
+            Green "   - Creating ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
+            # check if any previous name space entries exist and remove them
+			if [ -f $SETTINGS_FILE ]; then
+				STARTUPLINECOUNT=$(grep -c "$SCRIPT_NAME_DISPLAY" $SETTINGS_FILE)
+				# delete existing comment line if it exists - cleanup any residual stuff
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e  '/'"$SCRIPT_NAME_DISPLAY"'/d' $SETTINGS_FILE
+                    am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
+				else
+                    am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
+				fi
+			# a service-event file did not exist, so create one
+            else
+				am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
+			fi
+        ;; 
+        uninstall)
+            Green "   - Deleting ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
+            # check if any previous name space entries exist and remove them
+			if [ -f $SETTINGS_FILE ]; then
+				STARTUPLINECOUNT=$(grep -c "$SCRIPT_NAME_DISPLAY" $SETTINGS_FILE)
+				# delete existing comment line if it exists - cleanup any residual stuff
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e  '/'"$SCRIPT_NAME_DISPLAY"'/d' $SETTINGS_FILE
+				fi
+            fi
+        ;;
+    esac
+} # end of Custom_Settings()
+
+Install() {
+    # Parameter options: None
+    # Install script and download webui file
+    # This is also called by the update process once a new script is downloaded by update() function
+    clear
+    Scriptinfo
+
+    Green "Installing ${SCRIPT_NAME_DISPLAY}"
+    if [ ! Check_Firmware ]; then
+        Red "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
+        Press_Enter
+        rm -f "${0}" 2>/dev/null
+        exit 5
+    fi
+
+    # Create the directory for this scripts addon files
+    if [ ! -d "${SCRIPT_NAME_DIR}" ]; then
+        Green "   - Creating $SCRIPT_NAME ADDON directory"
+        mkdir -p "${SCRIPT_NAME_DIR}"
+    fi
+
+    # download ModSyslogUI script
+    Green "   - Downloading $(basename "${SCRIPT_INSTALL_PATH}")"
+    Download_File "$(basename "${SCRIPT_INSTALL_PATH}")" "${SCRIPT_INSTALL_PATH}" #ModSyslogUI script
+    chmod 755 ${SCRIPT_INSTALL_PATH} # make script executable
+
+    # download ModSyslogUI services-start script
+    Green "   - Downloading $(basename "${SCRIPT_AUTOSTART_PATH}")"
+    Download_File "$(basename "${SCRIPT_AUTOSTART_PATH}")" "${SCRIPT_AUTOSTART_PATH}" #ModSyslogUI script
+    chmod 755 ${SCRIPT_AUTOSTART_PATH} # make script executable
+
+    # download custom asp function file
+    Green "   - Downloading $(basename "${CUSTOM_FUNCTION_FILE}")"
+    Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #ModSyslogUI script
+
+    # download custom ui logic file
+    Green "   - Downloading $(basename "${CUSTOM_LOGIC_FILE}")"
+    Download_File "$(basename "${CUSTOM_LOGIC_FILE}")" "${CUSTOM_LOGIC_FILE}" #ModSyslogUI script
+
+    # download custom ui PHP file
+    Green "   - Downloading $(basename "${CUSTOM_PHP_FILE}")"
+    Download_File "$(basename "${CUSTOM_PHP_FILE}")" "${CUSTOM_PHP_FILE}" #ModSyslogUI script
+
+    # copy over the system's default logFilter.json file 
+    #+ the defaults are fine, but copying over in case user wants to customize
+    Green "   - Copying Asus's default system log filtering file, in case you want to customize defaults"
+    cp "$DEFAULT_LOGFILTER_PATH" "$SCRIPT_NAME_DIR/"
+
+    # Copy default System Log ASP file to scripts addon directory
+    Green "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
+    cp "$DEFAULT_SYSLOG_ASP_FILE" "$SCRIPT_NAME_DIR/"
+
+    # add autostart_modsyslogui script to services-start, so the customized filtering is installed on router reboot
+    Mod_Startup install
+
+    # modify default system log web page to add filtering capabilities
+    Mod_Syslog_Asp install
+    
+    # add alias command for invoking script
+    Setup_Aliases install
+
+    # create Asuswrt third party addon name space with version information
+    Custom_Settings installl
+
+    # Install complete messages
+    Green "${SCRIPT_NAME_DISPLAY} installation complete!"
+    Magenta "   - be sure to run the ModSyslogUI command, then choose option 5 to edit the logFilter.json file if you want to modify the default filtering items"
+} # end of Install()
+
+Uninstall() {
+    Green "Uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+
+    # Remove the addons startup line in services-start
+    Mod_Startup uninstall
+    # unmount the custom syslog asp file
+    umount $DEFAULT_SYSLOG_ASP_FILE 2>/dev/null
+
+    # Remove UI custom code
+    Mod_Syslog_Asp uninstall
+
+    # Remove the scripts alias, either under /opt/bin or in profiles.add
+    Setup_Aliases uninstall
+
+    # Remove the addons custom-settings.txt entry
+    Custom_Settings uninstall
+
+    # Remove the scripts addon directory
+    Green "   - removing the scripts addon directory"
+    cd $ADDON_DIR
+    rm -r ${SCRIPT_NAME_DIR}
+
+    # output completion message
+    Green "Completed uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+} # end of Uninstall()
+
+Update() {
+
+    # Check for, and optionally apply updates.
+    # Parameter options: check (do not update), silent (update without prompting)
+    local updatestatus yn remotever
+    Scriptinfo
+    Green "Checking for updates"
+    # Update the webui status thorugh detect_update.js ajax call.
+    # Get the version of the script on Github
+    localver="$(grep "SCRIPT_VERSION=" $SCRIPT_INSTALL_PATH | grep -m1 -oE "$scriptVersRegExp")"
+    remotever="$(curl -fsL --retry 4 --retry-delay 5 "$GIT_URL/$SCRIPT_NAME" | grep "SCRIPT_VERSION=" | grep -m1 -oE "$scriptVersRegExp")"
+    # Compare local and remote versions to see how to proceed
+    if [ "$localver" != "$remotever" ]; then
+        # version upgrade
+        updatestatus="Update"
+    else
+        updatestatus="NoUpdate"
+    fi
+
+    if [ "${mode}" = "interactive" ]; then
+        case "${updatestatus}" in
+        'NoUpdate')
+            Green "   - You have the latest version installed"
+            printf " Would you like to overwrite your existing installation anyway? [y=Yes n=No]: "
+            ;;
+        'Update')
+                    # New Version Number
+            Green "   - ${SCRIPT_NAME_DISPLAY} v${updatestatus} is now available!"
+            printf " Would you like to update now? [y=Yes n=No]: "
+            ;;
+        *)
+            Red "   - Error occured checking version information"
+            Press_Enter
+            return
+            ;;
+        esac
+        read -r yn
+        printf "\n"
+        if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
+            Cyan "   - No Changes have been made"
+            return 0
+        fi
+    fi
+    Green "   - Installing latest version of ${SCRIPT_NAME_DISPLAY}"
+    Download_File "$(basename "${SCRIPT_INSTALL_PATH}")" "${SCRIPT_INSTALL_PATH}"
+    Install
+    
+    # Output completion message
+    Green "Completed installing script updates"
+} # end of Update()
+
+Edit () {
+    local before_hash 
+    local after_hash 
+
+    # Get the hash of the hidemenus list file BEFORE editing
+    before_hash=$(sha256sum "$CUSTOM_LOGFILTER_PATH" | awk '{ print $1 }')
+
+    # Make sure the custom logFilter file exists, if not, copy it over
+    if [ ! -f "$CUSTOM_LOGFILTER_PATH}" ]; then
+        cp $DEFAULT_LOGFILTER_PATH $CUSTOM_LOGFILTER_PATH
+    fi
+
+    nano $CUSTOM_LOGFILTER_PATH
+
+    # Get the hash of the hidemenus list file AFTER editing
+    after_hash=$(sha256sum "$CUSTOM_LOGFILTER_PATH" | awk '{ print $1 }') 
+
+    # Check for any changes
+    if [ ! "${before_hash}" = "${after_hash}" ]; then
+        mount -o bind $CUSTOM_LOGFILTER_PATH $DEFAULT_LOGFILTER_PATH
+        Yellow "Your changes have been saved to $CUSTOM_LOGFILTER_PATH and applied to the System"
+    else
+        Yellow "No changes were made to the $CUSTOM_LOGFILTER_PATH"
+    fi
+} # end of Edit()
+
+Remove_Filter () {
+    Mod_Syslog_Asp uninstall
+} # end of Remove_Filter()
+
+Add_Filter () {
+    Mod_Syslog_Asp install
+} # end of Add_Filter()
+
+Main_Menu() {
+    local yn
+    [ "${mode}" = "interactive" ] || return
+    clear
+    sed -n '2,9p' "${0}"		# display banner
+    Scriptinfo
+    Cyan "  (1) About        explain functionality"
+    Cyan "  (2) Help         information on how to use this script"
+    Cyan "  (3) Install      install all script files"
+    Cyan "  (4) Update       check for script updates"
+    Cyan "  (5) Edit         edit the default list of log records to exclude from displaying in the UI"
+    Cyan '  (6) Add          select this only if you removed the filtering capabilities for some reason'
+    Cyan "  (7) Remove       remove the filtering capabilities temporarily"
+    Cyan "  (8) Debug        enable verbose logging for troubleshooting"
+    Cyan "  (9) Uninstall    completely remove HideUIMenus from the router"
+    Cyan "  (e) Exit         exit without doing anything"
+    printf "\nMake a selection: "
+    read -r input
+    case "${input}" in
+        '1')
+            clear
+            About
+        ;;
+        '2')
+            clear
+            Show_Help
+        ;;
+        '3')
+            Install
+        ;;
+        '4')
+            Update
+        ;;
+        '5')
+            Edit
+        ;;
+        '6')
+            Add_Filter
+        ;;
+        '7')
+            Remove_Filter
+        ;;
+        '8')
+            Debug
+        ;;
+        '9')
+            Uninstall
+            Magenta "   - Thanks for using $SCRIPT_NAME_DISPLAY - Bye"
+            exit
+        ;;
+        'e'|'E'|'exit')
+            return
+        ;;
+        *)
+            printf "\n"
+            Red "[ERROR] $input is not a valid option!"
+            printf "n"
+            exit 5
+        ;;
+    esac
+    Press_Enter
+    Main_Menu		# stay in the menu loop until exit is chosen
+} # end of Main_Menu()
+
+###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
+##
+## Script Mainline
+##
+
+# Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
+if tty >/dev/null 2>&1; then
+    mode="interactive"
+else
+    mode="unattended"
+fi
+
+# verify only certain unattended commmands were passed into script, otherwise exit
+if [  ${mode} = "interactive" ];  then
+    :
+elif [  ${mode} = "unattended" ]  && [ ! "$1" = "add" ]; then
+    Logmsg "[ERROR] >> $1 << is not a support option for unattended mode"
+    exit 5
+fi
+
+# Make sure the version in custom_settings.txt matches the version of this script
+if [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ]; then
+	am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
+fi
+
+# Check and process the parameter passed when calling this script
+case "$1" in
+    'menu'|'')
+        Main_Menu
+    ;;
+    'install')
+        Install
+    ;;
+    'update')
+        Update
+    ;;
+    'edit')
+        Edit
+    ;;
+    'add')
+        Add_Filter
+    ;;
+    'remove')
+        Remove_Filter
+    ;;
+    'debug')
+        Debug
+    ;;
+    'uninstall')
+        Uninstall
+    ;;
+    *)
+    if [ ! "${mode}" = "interactive" ]; then
+        Logmsg "[ERROR] >> $1 << is an unknown parameter; script ended unexpectedly"
+        exit 5
+    else
+        printf "\n"
+        Red "[ERROR] >> $1 << is not a valid option!"
+        printf "\n"
+        exit 5
+    fi
+    ;;
+esac
