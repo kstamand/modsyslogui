@@ -1,14 +1,13 @@
 #!/bin/sh
 
-#enable log filtering for default syslog messages, using default logFilter.json file (modify to your liking)
+# mount the customized logFilter.json file if it exists
 if [ -s /jffs/addons/modsyslogui/logFilter.json ]; then
-    logger -t mylogFilter "Mounting custom logFilter.json"
+    logger -t modsyslogui "Mounting custom logFilter.json"
     mount -o bind /jffs/addons/modsyslogui/logFilter.json /www/ajax/logFilter.json
-else
-    logger -t mylogFilter "UnMount standard logFilter.json"
-    umount /www/ajax/logFilter.json 2>/dev/null
 fi
 
-# Mount my own custom syslog filtering UI
-logger -t mySyslogFilter "Mounting my custom Syslog filter ASP"
-mount -o bind /jffs/addons/modsyslogui/Main_LogStatus_Content.asp /www/Main_LogStatus_Content.asp
+# Mount the custom System Log page containing custom filtering capabilities if it exists
+if [ -f /jffs/addons/modsyslogui/Main_LogStatus_Content.asp]; then
+    logger -t modsyslogui "Mounting customized System Log page"
+    mount -o bind /jffs/addons/modsyslogui/Main_LogStatus_Content.asp /www/Main_LogStatus_Content.asp
+fi
