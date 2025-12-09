@@ -35,9 +35,9 @@ The default contents of the logFilter.json file are:
 		]
 		}
 
-To edit this file, add one line for each string from a given log record you want to exclude from being displayed
+To edit this file, add one line for each string from a given log record you want to exclude assocated log records from being displayed
 		*string needs to be enclosed in quotes ("")
-		each line, except the last line of strings, must end in a comma (,)*
+		each line, except the last line of filtering strings, must end in a comma (,)*
 
 Example custimized logFilter.json file, to exclude all wireless events ("wlceventd"), Diversion records ("Diversion:"), and Skynet BLOCKED records ("BLOCKED"):
 
@@ -52,11 +52,17 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 		"BLOCKED"
 		]
 		}
-
-
 	 
-## Usage:
+## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
 <img width="835" height="205" alt="image" src="https://github.com/user-attachments/assets/ce55c64d-ba22-4ce8-901c-60f3071730c8" />
+
+## System Log page usage:
+The System Log page is customized by this script to add **Log Filtering Option** box, where you have three options:
+1. Show all log records (default option) - nothing need be entered in the dialog box under the three options. All system log records are displayed, minus those log recordds matching one of the strings in the logFilter.json file
+2. Include only - enter a string or series of strings separated by a comma, with no spaces, to only show log records matching the string(s)
+3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
+
+<img width="759" height="728" alt="image" src="https://github.com/user-attachments/assets/cdfda62d-9f9b-4387-9899-1424117947f0" />
 
