@@ -23,7 +23,7 @@
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
 #+      https://github.com/RMerl/asuswrt-merlin/wiki/Addons-API/90b49e443b8ce64e82c0970237199deff46869f5
-# Documentation: https://github.com/kstamand/himodsyslogui
+# Documentation: https://github.com/kstamand/modsyslogui
 # Credits:      Code in this script modeled after FlexQoS (Dave14305) and SpdMerlin (Jack Yaz)
 #----------------------------------------------------------------------------------------------------#
 
