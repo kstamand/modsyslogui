@@ -7,7 +7,7 @@ if [ -s /jffs/addons/modsyslogui/logFilter.json ]; then
 fi
 
 # Mount the custom System Log page containing custom filtering capabilities if it exists
-if [ -f /jffs/addons/modsyslogui/Main_LogStatus_Content.asp]; then
+if [ -f /jffs/addons/modsyslogui/Main_LogStatus_Content.asp ]; then
     logger -t modsyslogui "Mounting customized System Log page"
     mount -o bind /jffs/addons/modsyslogui/Main_LogStatus_Content.asp /www/Main_LogStatus_Content.asp
 fi
