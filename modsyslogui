@@ -212,6 +212,9 @@ Mod_Startup() {
         'uninstall')
 			Green "   - Removing ${SCRIPT_NAME} from services-start"
             sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+
+            # unmount the logFilter.json file
+            umount $DEFAULT_LOGFILTER_PATH 2>/dev/null
         ;;
     esac
 } # end of Auto_Start()
@@ -399,13 +402,9 @@ Uninstall() {
 
     # Remove the addons startup line in services-start
     Mod_Startup uninstall
-    # unmount the logFilter.json file
-    umount $DEFAULT_LOGFILTER_PATH 2>/dev/null
 
     # Remove UI custom code
     Mod_Syslog_Asp uninstall
-    # unmount the custom syslog asp file
-    umount $DEFAULT_SYSLOG_ASP_FILE 2>/dev/null
 
     # Remove the scripts alias, either under /opt/bin or in profiles.add
     Setup_Aliases uninstall
@@ -415,7 +414,6 @@ Uninstall() {
 
     # Remove the scripts addon directory
     Green "   - removing the scripts addon directory"
-    cd $ADDON_DIR
     rm -rf ${SCRIPT_NAME_DIR}
 
     # output completion message
