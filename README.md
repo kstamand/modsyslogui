@@ -58,11 +58,11 @@ Once installed, from a terminal ssh session into the router, enter the command *
 
 <img width="835" height="205" alt="image" src="https://github.com/user-attachments/assets/ce55c64d-ba22-4ce8-901c-60f3071730c8" />
 
+To skip displaying the menu, you can run select options directly by running **modsyslogui** with one of the following parameters;
 
-To skip displaying the menu and having to choose an option, you can run select options directly by running **modsyslogui** with one of the following parameters:
-	*modsyslogui install*
-	*modsyslogui update*
-	*modsyslogui uninstall*
+	- modsyslogui install
+	- modsyslogui update
+	- modsyslogui uninstall
 
 ## System Log page usage:
 The System Log page is customized by this script to add **Log Filtering Option** box, where you have three options:
