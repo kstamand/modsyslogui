@@ -1,4 +1,4 @@
-//+++-Start Custom Asuswrt UI log filter cdoe
+//++ Start Custom Asuswrt UI log filter cdoe
 if (document.getElementById("ShowAll").checked == true) {
     for(var i=0;i<_string.length;i++){
         var found = filter.find(function(e){
@@ -47,4 +47,4 @@ else if (document.getElementById("Include").checked == true) {
         }
     }
 }
-//+++-End Custom Asuswrt UI log filter code
+//++ End Custom Asuswrt UI log filter code
