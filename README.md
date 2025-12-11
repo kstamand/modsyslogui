@@ -52,6 +52,14 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 		"BLOCKED"
 		]
 		}
+
+**TIPS**
+ALL System log records, generally start with a script a function name. Examples;
+- The majority of ADDON script contributors prefix their log records with the name of their script (e.g., Diversion, Skynet, Scribe, ...)
+- Other than that, scan log records for unique strings of records to inlude / exclude, such as
+  > wireless events (leaving or joining) = wlcevented 
+  > ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
+  > specific addon scripts (e.g., log records starting with modsyslogui)
 	 
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
