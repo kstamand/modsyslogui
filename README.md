@@ -22,7 +22,7 @@ SSH to the router and enter:
 ```
 
 ## Configuration:
-*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 5 from the modsyslogui menu. 
+*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 5 from the modsyslogui menu.* 
 
 The default contents of the logFilter.json file are:
 
