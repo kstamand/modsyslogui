@@ -432,7 +432,7 @@ Uninstall() {
     Custom_Settings uninstall
 
     # Remove the scripts addon directory
-    Green "   - removing the scripts addon directory"
+    Green "   - Removing the scripts addon directory"
     rm -rf ${SCRIPT_NAME_DIR}
 
     # output completion message
