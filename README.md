@@ -81,3 +81,6 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
 
 <img width="778" height="749" alt="image" src="https://github.com/user-attachments/assets/48143bbb-39c0-4820-95d1-cf742a59552f" />
+
+## Support
+See [SmallNetBuilder Forum](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=8) for more information & discussion
