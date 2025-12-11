@@ -374,7 +374,7 @@ Install() {
     cp "$DEFAULT_LOGFILTER_PATH" "$SCRIPT_NAME_DIR/"
 
     # mount the default logFilter.json file that was just copied over, so future edits will automatically be reflected in UI
-    mount $CUSTOM_LOGFILTER_PATH $DEFAULT_LOGFILTER_PATH
+    mount -o bind $CUSTOM_LOGFILTER_PATH $DEFAULT_LOGFILTER_PATH
 
     # Copy default System Log ASP file to scripts addon directory
     Green "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
