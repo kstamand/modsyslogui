@@ -56,7 +56,7 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
-<img width="1084" height="451" alt="image" src="https://github.com/user-attachments/assets/f640eadc-3ae2-47bb-9136-d539d9af2502" />
+<img width="1090" height="455" alt="image" src="https://github.com/user-attachments/assets/69a9d914-7bfc-4de4-abc0-1469fa85f50d" />
 
 To skip displaying the menu, you can run select options directly by running **modsyslogui** with one of the following parameters;
 
