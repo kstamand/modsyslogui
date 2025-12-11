@@ -23,7 +23,7 @@
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
 #+      https://github.com/RMerl/asuswrt-merlin/wiki/Addons-API/90b49e443b8ce64e82c0970237199deff46869f5
-# Documentation: https://github.com/kstamand/modsyslogui
+# Documentation: https://github.com/kstamand/himodsyslogui
 # Credits:      Code in this script modeled after FlexQoS (Dave14305) and SpdMerlin (Jack Yaz)
 #----------------------------------------------------------------------------------------------------#
 
@@ -34,7 +34,7 @@
 readonly SCRIPT_NAME="modsyslogui"
 readonly SCRIPT_VERSION="v1.0.0"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
-readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
+readonly SCRIPT_NAME_DISPLAY="ModSysloUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
 readonly ADDON_DIR="/jffs/addons"
 readonly SCRIPT_NAME_DIR="${ADDON_DIR}/${SCRIPT_NAME}"
@@ -92,18 +92,16 @@ About() {
     Scriptinfo
     echo -e "${CYAN_TEXT}"
     cat <<EOF
-License:
+License
 ${SCRIPT_NAME_DISPLAY} is free to use under the GNU General Public License, version 3 (GPL-3.0).
 https://opensource.org/licenses/GPL-3.0
 
 For discussion visit this thread:
-https://www.snbforums.com/forums/asuswrt-merlin-addons.60/
-
-Source code:
-https://github.com/kstamand/modsyslogui
+https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=8
+https://github.com/kstamand/ModSyloogUI(Source Code)
 
 About
-This script adds filtering capabilities (Show All, Include only, Exclude) to the routers System Log web page
+This script adds filtering capabilities (Show All, Include only, Exclude strings) to the routers System Log web page
 EOF
 echo -e "${RESET}"
 } # end of about() information
@@ -119,7 +117,7 @@ This script also updates the System Log page of the Router UI to include dynamic
    - Include only log records containing the string or strings of text you chose (separate each by a comma)
      Example - to include all Skynet and Diversion log records, enter Skynet,Diversion (no spaces after comma)
    - Exlude all log records containing the string or strings of text you chose (separate each by a comma)
-     Example - to exlcude all Skynet log records that where blocked, enter the string BLOCK2ED
+     Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
 
 For reference, the following are the default contents of the "logFilter.json" file":
     {
@@ -211,10 +209,14 @@ Mod_Startup() {
         ;;
         'uninstall')
 			Green "   - Removing ${SCRIPT_NAME} from services-start"
-            sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
-
-            # unmount the logFilter.json file
-            umount $DEFAULT_LOGFILTER_PATH 2>/dev/null
+            # check if services-start line exists and if so, remove any HideUIMenus lines found
+            if [ -f /jffs/scripts/services-start ]; then
+				STARTUPLINECOUNT=$(grep -c "${SCRIPT_INSTALL_PATH}" /jffs/scripts/services-start)
+				
+				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
+					sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
+				fi
+			fi
         ;;
     esac
 } # end of Auto_Start()
@@ -226,13 +228,14 @@ Mod_Syslog_Asp() {
         if [ -f "$SCRIPT_AUTOSTART_PATH" ]; then
             Green "   - Adding filtering capabilities to System Log UI page"
             # delete any existing inserted custom code that may be there (delete everything between //++ and //++)
-            # customxxx files begin with //+++ Start ... and end with //+++ End ..., where // is a comment
+            # customxxx files begin with //++ Start ... and end with //++ End ..., where // is a comment
             sed -i '/[/][+]/,/[/][+]/d' $CUSTOM_SYSLOG_ASP_FILE
             # insert filter event handler (submit button on System Log UI)
             #sed -i "/applySettings()/r $CUSTOM_FUNCTION_FILE" -e //N $CUSTOM_SYSLOG_ASP_FILE
             sed -i "/applySettings(){/i $(cat $CUSTOM_FUNCTION_FILE)" $CUSTOM_SYSLOG_ASP_FILE
-            # insert custom filtering logic
-            sed -i "/var _string/r $CUSTOM_LOGIC_FILE" $CUSTOM_SYSLOG_ASP_FILE
+            # insert custom filtering logic, first deleting existing logic
+            sed -i '/var\ _string/,/.innerHTML\ =\ _log/{/var\ _string/n;/.innerHTML\ =\ _log/!d;}' $CUSTOM_SYSLOG_ASP_FILE
+            sed -i "/var/ _string/r $CUSTOM_LOGIC_FILE" $CUSTOM_SYSLOG_ASP_FILE
             # insert custom webpage phb code
             sed -i "/div class=\"apply_gen\"/r $CUSTOM_PHP_FILE" $CUSTOM_SYSLOG_ASP_FILE
 
@@ -376,6 +379,9 @@ Install() {
     Green "   - Copying Asus's default system log filtering file, in case you want to customize defaults"
     cp "$DEFAULT_LOGFILTER_PATH" "$SCRIPT_NAME_DIR/"
 
+    # mount the default logFilter.json file that was just copied over, so future edits will automatically be reflected in UI
+    mount $CUSTOM_LOGFILTER_PATH $DEFAULT_LOGFILTER_PATH
+
     # Copy default System Log ASP file to scripts addon directory
     Green "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
     cp "$DEFAULT_SYSLOG_ASP_FILE" "$SCRIPT_NAME_DIR/"
@@ -402,6 +408,9 @@ Uninstall() {
 
     # Remove the addons startup line in services-start
     Mod_Startup uninstall
+
+    # unmount the custom logFilter.json file
+    umount $DEFAULT_LOGFILTER_PATH 2>/dev/null
 
     # Remove UI custom code
     Mod_Syslog_Asp uninstall
@@ -446,7 +455,7 @@ Update() {
             printf " Would you like to overwrite your existing installation anyway? [y=Yes n=No]: "
             ;;
         'Update')
-            # New Version Number
+                    # New Version Number
             Green "   - ${SCRIPT_NAME_DISPLAY} v${updatestatus} is now available!"
             printf " Would you like to update now? [y=Yes n=No]: "
             ;;
@@ -475,7 +484,7 @@ Edit () {
     local before_hash 
     local after_hash 
 
-    # Get the hash of the default logFilter.json  file BEFORE editing
+    # Get the hash of the hidemenus list file BEFORE editing
     before_hash=$(sha256sum "$CUSTOM_LOGFILTER_PATH" | awk '{ print $1 }')
 
     # Make sure the custom logFilter file exists, if not, copy it over
@@ -485,7 +494,7 @@ Edit () {
 
     nano $CUSTOM_LOGFILTER_PATH
 
-    # Get the hash of the custom logFilter.json file AFTER editing
+    # Get the hash of the hidemenus list file AFTER editing
     after_hash=$(sha256sum "$CUSTOM_LOGFILTER_PATH" | awk '{ print $1 }') 
 
     # Check for any changes
@@ -515,11 +524,11 @@ Main_Menu() {
     Cyan "  (2) Help         information on how to use this script"
     Cyan "  (3) Install      install all script files"
     Cyan "  (4) Update       check for script updates"
-    Cyan "  (5) Edit         edit the default list of log records to exclude from displaying in the UI"
-    Cyan '  (6) Add          select this only if you removed the filtering capabilities for some reason'
-    Cyan "  (7) Remove       remove the filtering capabilities temporarily"
+    Cyan "  (5) Edit         edit the hard coded filtering file (logFilter.json), which filter regardless of dynamic UI filtering"
+    Cyan '  (6) Add          select this only if you removed the dynamic UI filtering capabilities for some reason'
+    Cyan "  (7) Remove       remove the dynamic UI filtering capabilities temporarily"
     Cyan "  (8) Debug        enable verbose logging for troubleshooting"
-    Cyan "  (9) Uninstall    completely remove modsyslogui from the router"
+    Cyan "  (9) Uninstall    completely remove HideUIMenus from the router"
     Cyan "  (e) Exit         exit without doing anything"
     printf "\nMake a selection: "
     read -r input
@@ -581,6 +590,14 @@ else
     mode="unattended"
 fi
 
+# verify only certain unattended commmands were passed into script, otherwise exit
+if [  ${mode} = "interactive" ];  then
+    :
+elif [  ${mode} = "unattended" ]  && [ ! "$1" = "add" ]; then
+    Logmsg "[ERROR] >> $1 << is not a support option for unattended mode"
+    exit 5
+fi
+
 # Make sure the version in custom_settings.txt matches the version of this script
 if [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ]; then
 	am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
@@ -597,6 +614,18 @@ case "$1" in
     'update')
         Update
     ;;
+    'edit')
+        Edit
+    ;;
+    'add')
+        Add_Filter
+    ;;
+    'remove')
+        Remove_Filter
+    ;;
+    'debug')
+        Debug
+    ;;
     'uninstall')
         Uninstall
     ;;
@@ -605,19 +634,9 @@ case "$1" in
         Logmsg "[ERROR] >> $1 << is an unknown parameter; script ended unexpectedly"
         exit 5
     else
-        clear
         printf "\n"
         Red "[ERROR] >> $1 << is not a valid option!"
         printf "\n"
-        Green "[INFO] valid options are:"
-        echo -e "${YELLOW_TEXT}"
-        cat <<EOF
-modsyslogui menu
-modsyslogui install
-modsyslogui update
-modsyslogui uninstall
-EOF
-echo -e "${RESET}"
         exit 5
     fi
     ;;
