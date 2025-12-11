@@ -235,7 +235,7 @@ Mod_Syslog_Asp() {
             sed -i "/applySettings(){/i $(cat $CUSTOM_FUNCTION_FILE)" $CUSTOM_SYSLOG_ASP_FILE
             # insert custom filtering logic, first deleting existing logic
             sed -i '/var\ _string/,/.innerHTML\ =\ _log/{/var\ _string/n;/.innerHTML\ =\ _log/!d;}' $CUSTOM_SYSLOG_ASP_FILE
-            sed -i "/var/ _string/r $CUSTOM_LOGIC_FILE" $CUSTOM_SYSLOG_ASP_FILE
+            sed -i "/var\ _string/r $CUSTOM_LOGIC_FILE" $CUSTOM_SYSLOG_ASP_FILE
             # insert custom webpage phb code
             sed -i "/div class=\"apply_gen\"/r $CUSTOM_PHP_FILE" $CUSTOM_SYSLOG_ASP_FILE
 
