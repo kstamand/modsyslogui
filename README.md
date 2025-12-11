@@ -2,6 +2,9 @@
 
 This script has been developed and tested on a RT-BE96U, running Asuswrt-Merlin 3006.102.6
 
+*This script DOES NOT equal or replace the functionality the SCRIBE addon provides. 
+Instead it provides a similar but "lightweight" capability that utilizes native capabilities of the router*
+
 ## Overview:
 - Installs script onto router that adds filtering capabilities to the routers "System Log" UI page
 - The script provides an interactive manu of options to maintain the script and perform various maintenance functions
