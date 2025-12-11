@@ -210,13 +210,7 @@ Mod_Startup() {
         'uninstall')
 			Green "   - Removing ${SCRIPT_NAME} from services-start"
             # check if services-start line exists and if so, remove any HideUIMenus lines found
-            if [ -f /jffs/scripts/services-start ]; then
-				STARTUPLINECOUNT=$(grep -c "${SCRIPT_INSTALL_PATH}" /jffs/scripts/services-start)
-				
-				if [ "$STARTUPLINECOUNT" -gt 0 ]; then
-					sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
-				fi
-			fi
+            sed -i -e '/'"$SCRIPT_NAME"'/d' /jffs/scripts/services-start
         ;;
     esac
 } # end of Auto_Start()
