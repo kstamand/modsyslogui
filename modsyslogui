@@ -530,8 +530,8 @@ Main_Menu() {
     Cyan "  (3) Install      install all script files"
     Cyan "  (4) Update       check for script updates"
     Cyan "  (5) Edit         edit the hard coded filtering file (logFilter.json), which filter regardless of dynamic UI filtering"
-    Cyan "  (6) Enable       select this only if you temporarily disabled dynamic filtering (e.g., troubleshooting)"
-    Cyan "  (7) Disable      disable dynamic UI filtering capabilities temporarily"
+    Cyan "  (6) Disable      disable dynamic UI filtering capabilities temporarily"
+    Cyan "  (7) Enable       select this only if you temporarily disabled dynamic filtering (e.g., troubleshooting)"
     Cyan "  (8) Debug        enable verbose logging for troubleshooting"
     Cyan "  (9) Uninstall    completely remove HideUIMenus from the router"
     Cyan "  (e) Exit         exit without doing anything"
@@ -556,10 +556,10 @@ Main_Menu() {
             Edit
         ;;
         '6')
-            Enable_Filter
+            Disable_Filter
         ;;
         '7')
-            Disable_Filter
+            Enable_Filter
         ;;
         '8')
             Debug
