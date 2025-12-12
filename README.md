@@ -21,7 +21,7 @@ Instead it provides a similar but "lightweight" capability that utilizes native 
 SSH to the router and enter:
 
 ```Shell
-/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/master/modsyslogui" -o "/jffs/addons/modsyslogui/modsyslogui" --create-dirs && chmod +x /jffs/addons/modsyslogui/modsyslogui && sh /jffs/addons/modsyslogui/modsyslogui install
+/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/master/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
 ```
 
 ## Configuration:
