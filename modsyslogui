@@ -16,7 +16,7 @@
 # shellcheck disable=SC3037
 # shellcheck disable=SC3043
 #----------------------------------------------------------------#
-
+#----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
 # Date:         2025-12-07
 # Synopsis:     add filtering functionality to routers system log page
@@ -113,7 +113,7 @@ echo -e "${RESET}"
 Show_Help() {
     echo -e "${CYAN_TEXT}"
     cat <<EOF
-The default filtering capabilities on the Systme Log page of the router is limited to hardcoded test strings
+The default filtering capabilities on the Systme Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
 
 This script also updates the System Log page of the Router UI to include dynamic filtering capabilities for:
