@@ -225,7 +225,7 @@ Mod_Startup() {
     # Parameters: $1 - install or uninstall
     case $1 in
         'install')
-            Green "   - Adding ${SCRIPT_NAME} services-start line"/
+            Green "   - Adding ${SCRIPT_NAME} services-start line"
             # check if a services-start file exists and process as follows
 			if [ -f /jffs/scripts/services-start ]; then
                 # delete any existing modsyslogui lines just in case
