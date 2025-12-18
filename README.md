@@ -1,9 +1,21 @@
 # modsyslogui - Customize routers "System Log" page with custom filtering capabilities
+## About:
+The default filtering capabilities on the System Log page of the router is limited to hardcoded text strings
+in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
 
+This script also updates the System Log page of the Router UI to include dynamic filtering capabilities for:
+   - Include all log records, which is the default function, including exclusions noted in logFilter.json
+   - Include only log records containing the string or strings of text you chose (separate each by a comma)
+     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)
+   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)
+     Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
+     
 This script has been developed and tested on a RT-BE96U, running Asuswrt-Merlin 3006.102.6
 
-*This script DOES NOT equal or replace the functionality the SCRIBE addon provides. 
-Instead it provides a similar but "lightweight" capability that utilizes native capabilities of the router*
+*This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
+Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*  
+
+__IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOOSE ONE OR THE OTHER__
 
 ## Overview:
 - Installs script onto router that adds filtering capabilities to the routers "System Log" UI page
@@ -39,8 +51,8 @@ The default contents of the logFilter.json file are:
 		}
 
 To edit this file, add one line for each string from a given log record you want to exclude assocated log records from being displayed
-		*string needs to be enclosed in quotes ("")
-		each line, except the last line of the list of filtering strings, must end in a comma (,)*
+- string needs to be enclosed in quotes ("")
+- each line, except the last line of the list of filtering strings, must end in a comma (,)
 
 Example custimized logFilter.json file, to exclude all wireless events ("wlceventd"), Diversion records ("Diversion:"), and Skynet BLOCKED records ("BLOCKED"):
 
@@ -57,7 +69,7 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 		}
 
 **TIPS**
-ALL System log records, generally start with a script a function name. Examples;
+ALL System log records, generally start with a script function name. Examples;
 - The majority of ADDON script contributors prefix their log records with the name of their script (e.g., Diversion, Skynet, Scribe, ...)
 - Other than that, scan log records for unique strings of records to inlude / exclude, such as
   - wireless events (leaving or joining) = wlcevented
