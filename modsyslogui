@@ -136,6 +136,20 @@ EOF
 echo -e "${RESET}"
 } # end Show_Help ()
 
+Show_ArgsHelp () {
+    echo -e "${YELLOW_TEXT}"
+    cat <<EOF
+Rerun the script with no arguments or use one of the following:
+   modsyslogui menu 
+   modsyslogui install"
+   modsyslogui update"
+   modsyslogui disable"
+   modsyslogui enable"
+   modsyslogui uninstall"
+EOF
+echo -e "${RESET}"
+} # end Show_ArgsHelp()
+
 Scriptinfo() {
     # Version header used in interactive sessions
     printf "\n"
@@ -190,25 +204,20 @@ Download_File() {
 Download_Script_Files() {
     # Parameters: None
     # download ModSyslogUI script
-    Green "   - Downloading $(basename "${SCRIPT_INSTALL_PATH}")"
     Download_File "$(basename "${SCRIPT_INSTALL_PATH}")" "${SCRIPT_INSTALL_PATH}" #ModSyslogUI script
     chmod 755 ${SCRIPT_INSTALL_PATH} # make script executable
 
     # download ModSyslogUI services-start script
-    Green "   - Downloading $(basename "${SCRIPT_AUTOSTART_PATH}")"
     Download_File "$(basename "${SCRIPT_AUTOSTART_PATH}")" "${SCRIPT_AUTOSTART_PATH}" #ModSyslogUI script
     chmod 755 ${SCRIPT_AUTOSTART_PATH} # make script executable
 
     # download custom asp function file
-    Green "   - Downloading $(basename "${CUSTOM_FUNCTION_FILE}")"
     Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #ModSyslogUI script
 
     # download custom ui logic file
-    Green "   - Downloading $(basename "${CUSTOM_LOGIC_FILE}")"
     Download_File "$(basename "${CUSTOM_LOGIC_FILE}")" "${CUSTOM_LOGIC_FILE}" #ModSyslogUI script
 
     # download custom ui PHP file
-    Green "   - Downloading $(basename "${CUSTOM_PHP_FILE}")"
     Download_File "$(basename "${CUSTOM_PHP_FILE}")" "${CUSTOM_PHP_FILE}" #ModSyslogUI script
 } # end of Download_Script_Files()
 
@@ -216,7 +225,7 @@ Mod_Startup() {
     # Parameters: $1 - install or uninstall
     case $1 in
         'install')
-            Green "   - Adding ${SCRIPT_NAME} services-start line"
+            Green "   - Adding ${SCRIPT_NAME} services-start line"/
             # check if a services-start file exists and process as follows
 			if [ -f /jffs/scripts/services-start ]; then
                 # delete any existing modsyslogui lines just in case
@@ -281,7 +290,7 @@ Setup_Aliases() {
             local cmdline
             if [ -d /opt/bin ]; then
                 # Entware is installed, so setup link to /opt/bin
-                Green "   - Adding ${SCRIPT_NAME} link in Entware /opt/bin"
+                Green "   - Adding ${SCRIPT_NAME} command line alias"
                 ln -sf "${SCRIPT_INSTALL_PATH}" "/opt/bin/${SCRIPT_NAME}"
             else
                 # Setup shell alias
@@ -295,7 +304,7 @@ Setup_Aliases() {
             # remove alias from profile.add. Brute force, meaning not checking to see if exists first, just assume and delete
             if [ -L /opt/bin/${SCRIPT_NAME} ]; then
                 # Entware is installed, so setup link to /opt/bin
-                Green "   - Deleting ${SCRIPT_NAME} link in Entware /opt/bin"
+                Green "   - Deleting ${SCRIPT_NAME} command line alias"
                 rm "/opt/bin/${SCRIPT_NAME}"
             else
                 # Remove alias from profile.add
@@ -410,7 +419,7 @@ Install() {
 
     # Install complete messages
     Green "${SCRIPT_NAME_DISPLAY} installation complete!"
-    Magenta "   - be sure to run the ModSyslogUI command, then choose option 5 to edit the logFilter.json file if you want to modify the default filtering items"
+    Magenta "   - be sure to run the ModSyslogUI EDIT command (menu option #5), to modify the logFilter.json to exclude System Log records to your likings"
 } # end of Install()
 
 Uninstall() {
@@ -575,7 +584,7 @@ Main_Menu() {
         *)
             printf "\n"
             Red "[ERROR] ${input} is not a valid option!"
-            printf "n"
+            printf "\n"
             exit 5
         ;;
     esac
@@ -587,6 +596,15 @@ Main_Menu() {
 ##
 ## Script Mainline
 ##
+clear
+
+# check to make sure only one argument passed, exit otherwise
+if [ $# -gt 1 ]; then
+    Red "Too many arguments ($#) passed to this script!"
+    printf "\n"
+    Show_ArgsHelp
+    exit 1
+fi
 
 # Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
 if tty >/dev/null 2>&1; then
@@ -595,7 +613,7 @@ else
     mode="unattended"
 fi
 
-if [ $mode = "unattended" ]; then
+if [ ${mode} = "unattended" ]; then
     Logmsg "[ERROR] this script does not support unattended mode operations"
 fi
 
@@ -604,7 +622,7 @@ if [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ];
 	am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
 fi
 
-# Check and process the parameter passed when calling this script
+# Check and process the argument passed when calling this script
 case "${1}" in
     'menu'|'')
         Main_Menu
@@ -625,16 +643,9 @@ case "${1}" in
         Uninstall
     ;;
     *)
+    Red "${1} is an unknown argument"
     printf "\n"
-    Red "[ERROR] >> ${1} << is not a valid option!"
-    printf "\n"
-    Yellow "Valid parameters for this are:"
-    Yellow "   modsyslogui menu or no parameter at all"
-    Yellow "   modsyslogui install"
-    Yellow "   modsyslogui update"
-    Yellow "   modsyslogui disable"
-    Yellow "   modsyslogui enable"
-    Yellow "   modsyslogui uninstall"
-    exit 5
+    Show_ArgsHelp
+    exit 1
     ;;
 esac
