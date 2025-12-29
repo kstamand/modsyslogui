@@ -1,3 +1,5 @@
+![ShellCheck](https://img.shields.io/badge/ShellCheck-passing-brightgreen)
+
 # modsyslogui - Customize routers "System Log" page with custom filtering capabilities
 ## About:
 The default filtering capabilities on the System Log page of the router is limited to hardcoded text strings
