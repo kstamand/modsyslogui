@@ -103,4 +103,4 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 <img width="778" height="749" alt="image" src="https://github.com/user-attachments/assets/48143bbb-39c0-4820-95d1-cf742a59552f" />
 
 ## Support
-See [SmallNetBuilder Forum](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=8) for more information & discussion
+See [SmallNetBuilder Forum](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/) for more information & discussion
