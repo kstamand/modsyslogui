@@ -1,18 +1,21 @@
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-passing-brightgreen)
 
-# modsyslogui - Customize routers "System Log" page with custom filtering capabilities
+# modsyslogui - Customize router's "System Log" page with custom filtering capabilities
 ## About:
 The default filtering capabilities on the System Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
 
-This script also updates the System Log page of the Router UI to include dynamic filtering capabilities for:
+This script also updates the System Log page of the Router UI to include dynamic filtering capabilities to:
    - Include all log records, which is the default function, including exclusions noted in logFilter.json
    - Include only log records containing the string or strings of text you chose (separate each by a comma)
      Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)
    - Exlude all log records containing the string or strings of text you chose (separate each by a comma)
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
      
-This script has been developed and tested on a RT-BE96U, running Asuswrt-Merlin 3006.102.6
+This script has been developed under Asuswrt-Merlin 3006.102.6 firmeware and tested on the following routers:
+- RT-BE96U
+- RT-AX88U Pro
+- GT-AX6000
 
 *This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
 Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*  
@@ -20,9 +23,9 @@ Instead, it is a simpler lightweight addon that only utilizes the native capabil
 __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOOSE ONE OR THE OTHER__
 
 ## Overview:
-- Installs script onto router that adds filtering capabilities to the routers "System Log" UI page
-- The script provides an interactive manu of options to maintain the script and perform various maintenance functions
-- Custom System Log filtering capabilities added with this script:
+- Installs script onto router to add filtering capabilities to the routers "System Log" UI page
+- The script provides an interactive manu of options to perform various script maintenance functions
+- Custom System Log filtering capabilities added with this script include:
 	1. Hardcoded Filtering - By default, the System Log page filters log records to display based on the contents of a "logFilter.json" file. This script includes an EDIT option that allows you to customize to your liking.
  	2. Dynamic Filtering - The System Log page is modifed to allow you to interactively seltect which log records to INCLUDE or EXCLUDE, with the default action of filtering records based on the contents of the logFilter.json file 
 
@@ -73,7 +76,7 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 **TIPS**
 ALL System log records, generally start with a script function name. Examples;
 - The majority of ADDON script contributors prefix their log records with the name of their script (e.g., Diversion, Skynet, Scribe, ...)
-- Other than that, scan log records for unique strings of records to inlude / exclude, such as
+- Other than that, scan log records for unique strings from a given record to inlude / exclude, such as
   - wireless events (leaving or joining) = wlcevented
   - ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
   - specific addon scripts (e.g., log records starting with modsyslogui)
