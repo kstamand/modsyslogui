@@ -1,2 +1,7 @@
 v1.0.0 (11-Dec-2025)
   - NEW: Inital script
+v1.0.0-beta (08-Jan-2026)
+  - UPDATE: Add Logical Expression filtering suport (AND or OR or AND NOT)
+    * README.md - added bullet describing additional logical expresion filtering capability and updated screen image
+    * customlogic.js - added "boolean" code handling section
+    * customui.php - added "Boolean Include" button
