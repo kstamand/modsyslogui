@@ -33,7 +33,7 @@
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
 readonly SCRIPT_VERSION="v1.0.0"
-readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
+readonly scriptVersRegExp='v[0-9]+\.[0-9]+\.[0-9]+'
 readonly SCRIPT_NAME_DISPLAY="ModSysloUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
 readonly ADDON_DIR="/jffs/addons"
