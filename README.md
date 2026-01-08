@@ -2,15 +2,17 @@
 
 # modsyslogui - Customize router's "System Log" page with custom filtering capabilities
 ## About:
-The default filtering capabilities on the System Log page of the router is limited to hardcoded text strings
+The default filtering capabilities of what is <ins>displayed</ins> on the System Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
 
 This script also updates the System Log page of the Router UI to include dynamic filtering capabilities to:
-   - Include all log records, which is the default function, including exclusions noted in logFilter.json
-   - Include only log records containing the string or strings of text you chose (separate each by a comma)
-     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)
-   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)
+   - Include all log records, which is the default function, including exclusions noted in logFilter.json  
+   - Include only log records containing the string or strings of text you chose (separate each by a comma)  
+     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)  
+   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)  
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
+   - Use the logical operators AND or OR or AND NOT to filter the log records to display  
+     Example - only show kernel error msgs (e.g., Jan  8 00:02:32 kernel: WLC_SCB_DEAUTHORIZE error (-30), enter kernel AND error
      
 This script has been developed under Asuswrt-Merlin 3006.102.6 firmeware and tested on the following routers:
 - RT-BE96U
@@ -100,7 +102,8 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 2. Include only - enter a string or series of strings separated by a comma, with no spaces, to only show log records matching the string(s)
 3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
 
-<img width="778" height="749" alt="image" src="https://github.com/user-attachments/assets/48143bbb-39c0-4820-95d1-cf742a59552f" />
+<img width="767" height="732" alt="image" src="https://github.com/user-attachments/assets/ad2a4a54-c180-4cc2-a5e7-059449086cb1" />
+
 
 ## Support
 See [SmallNetBuilder Forum](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/) for more information & discussion
