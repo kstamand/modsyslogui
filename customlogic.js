@@ -49,7 +49,7 @@ else if (document.getElementById("Include").checked == true) {
 }
 else if (document.getElementById("Boolean").checked == true) {
     // define regex to ensure no more than 4 words entered in filter input field and middle words limited to specific logical operators
-    var filter_regex = /^(?:(\w+)\s+)?(AND|OR|AND NOT)(\s+\w+)?(\s+\w+)?$/;
+    var filter_regex = /^[\W\w]+(AND|OR|AND OR)[\W\w]+$/;
     var filter_input = document.getElementById("filter_text").value;
     const trimmed_input = filter_input.trim();
     const words = trimmed_input.split(/\s+/);
