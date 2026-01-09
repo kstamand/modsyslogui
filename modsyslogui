@@ -33,7 +33,7 @@
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
 readonly SCRIPT_VERSION="v1.0.0"
-readonly scriptVersRegExp='v[0-9]+\.[0-9]+\.[0-9]+'
+readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSysloUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
 readonly ADDON_DIR="/jffs/addons"
@@ -458,7 +458,7 @@ Update() {
     # Update the webui status thorugh detect_update.js ajax call.
     # Get the version of the script on Github
     localver="$(grep "SCRIPT_VERSION=" ${SCRIPT_INSTALL_PATH} | grep -m1 -oE "${scriptVersRegExp}")"
-    remotever="$(curl -fsL --retry 4 --retry-delay 5 "${GIT_URL}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "{$scriptVersRegExp}")"
+    remotever="$(curl -fsL --retry 4 --retry-delay 5 "${GIT_URL}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
     # Compare local and remote versions to see how to proceed
     if [ "${localver}" != "${remotever}" ]; then
         # version upgrade
@@ -489,7 +489,10 @@ Update() {
         Cyan "   - No Changes have been made"
         return 0
     fi
-    Download_Script_Files
+
+	Mod_Syslog_Asp uninstall   # Disable - Remove filtering mod from System Log UI
+    Download_Script_Files      # Download all associated files
+    Mod_Syslog_Asp install     # Re-Enable - Add filtering mod back to System Lot UI
     
     # Output completion message
     Green "Completed installing script updates"
