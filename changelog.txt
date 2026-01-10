@@ -1,11 +1,3 @@
-v1.0.0 (11-Dec-2025)
-  - NEW: Inital script
-v1.0.0-beta#1 (08-Jan-2026)
-  - UPDATE: Add Logical Expression filtering suport (AND or OR or AND NOT)
-    * README.md - added bullet describing additional logical expresion filtering capability and updated screen image
-    * customlogic.js - added "boolean" code handling section
-    * customui.php - added "Boolean Include" button
-v1.0.0-beta#2 (09-Jan-2026)
-  - UPDATE: Corrected the Update function
-    * FIX: corrected the regex check in the remotever var assignment 
-    * ADD: added a call before and after the download files call, to disable - renable the UI filtering function
+v1.0.0 (10-Jan-2025)
+  - NEW: Inital Production script release
+
