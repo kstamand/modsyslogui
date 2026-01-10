@@ -105,4 +105,4 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 <img width="767" height="732" alt="image" src="https://github.com/user-attachments/assets/488fb885-fb5b-406d-9b72-bc066f459d66" />
 
 ## Support
-See [SmallNetBuilder Forum](https://www.snbforums.com/forums/asuswrt-merlin-addons.60/) for more information & discussion
+See [SmallNetBuilder Forum](https://www.snbforums.com/threads/modsyslogui-v1-0-0-released-add-on-providing-system-log-page-ui-filtering-capabilities.96496/) for more information & discussion
