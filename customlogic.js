@@ -48,8 +48,8 @@ else if (document.getElementById("Include").checked == true) {
     }
 }
 else if (document.getElementById("Boolean").checked == true) {
-    // define regex to ensure no more than 4 words entered in filter input field and middle words limited to specific logical operators
-    var filter_regex = /^[\W\w]+(AND|OR|AND OR)[\W\w]+$/;
+    // define regex to ensure only two search strings providedd and only an AND or OR or AND NOT in the input field
+    var filter_regex = /^(?!.*\b(?:AND|OR|AND OR|AND NOT)\b.*\b(?:AND|OR|AND OR|AND NOT)\b)[\W\w]+\b(?:AND|OR|AND OR|AND NOT)\b[\W\w]+$/;
     var filter_input = document.getElementById("filter_text").value;
     const trimmed_input = filter_input.trim();
     const words = trimmed_input.split(/\s+/);
