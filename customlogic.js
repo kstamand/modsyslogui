@@ -56,7 +56,7 @@ else if (document.getElementById("Boolean").checked == true) {
     const num_words = words.length
     // Make sure something was entered in input field
     if ( !filter_regex.test(filter_input)) {
-        alert (filter_input + " Contains logical operators not supported by this script. Input must contain 3 - 4 words and middle words must be either AND or OR or AND NOT!!");
+        alert (filter_input + " <<< Invalid filtering input >> only 2 search strings and either an AND or OR or AND NOT operator supported (e.g., string1 AND string2)");
         document.getElementById("ShowAll").checked = "Checked";
     }
     // filter logs based on string1 OPERATOR string2 provided on input
