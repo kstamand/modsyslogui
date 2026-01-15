@@ -35,7 +35,7 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 
 
 ## Install:
-*Requires Asuswrt-Merlin, JFFS enabled, and entware installed via AMTM*
+*Requires Asuswrt-Merlin and JFFS enabled
 
 SSH to the router and enter:
 
