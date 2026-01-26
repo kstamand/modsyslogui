@@ -555,7 +555,7 @@ Enable_Filter () {
 Main_Menu() {
     local yn
     clear
-    sed -n '2,9p' "${0}"		# display banner
+    sed -n '2,9p' "${SCRIPT_INSTALL_PATH}"		# display banner
     Scriptinfo
     Cyan "  (1) About        explain functionality"
     Cyan "  (2) Help         information on how to use this script"
