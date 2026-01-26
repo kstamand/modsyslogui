@@ -18,7 +18,7 @@
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2025-01-10
+# Date:         2026-01-26
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
@@ -32,7 +32,7 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.0.0"
+readonly SCRIPT_VERSION="v1.0.1"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSysloUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
@@ -55,6 +55,20 @@ YELLOW_TEXT='\033[33m'
 MAGENTA_TEXT='\033[35m'
 CYAN_TEXT='\033[36m'
 RESET='\033[0m'
+
+##--------------------------------------------------------------------##
+## v1.0.1 supporfed firmware version check - inspired by Martinksi W. ##
+##--------------------------------------------------------------------##
+readonly fwInstalledBaseVers="$(nvram get firmver | sed 's/\.//g')"
+readonly fwInstalledBuildVers="$(nvram get buildno)"
+readonly fwInstalledExtendNum="$(nvram get extendno)"
+readonly fwInstalledBranchVer="${fwInstalledBaseVers}.$(echo "$fwInstalledBuildVers" | awk -F'.' '{print $1}')"
+
+case "$fwInstalledBranchVer" in
+    "3004.388") SUPPORTED_FIRMWARE_VERSION=false ;;
+    "3006.102") SUPPORTED_FIRMWARE_VERSION=true ;;
+            *) SUPPORTED_FIRMWARE_VERSION=false
+esac
 ### End of Script Variables
 
 # -x is a flag to show verbose script output for debugging purposes only
@@ -259,8 +273,11 @@ Mod_Syslog_Asp() {
             # insert custom filtering logic, first deleting existing logic
             sed -i '/var\ _string/,/.innerHTML\ =\ _log/{/var\ _string/n;/.innerHTML\ =\ _log/!d;}' ${CUSTOM_SYSLOG_ASP_FILE}
             sed -i "/var\ _string/r ${CUSTOM_LOGIC_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
-            # insert custom webpage phb code
-            sed -i "/div class=\"apply_gen\"/r ${CUSTOM_PHP_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
+            # insert custom webpage php code
+            ##--------------------------------------------------------------------------------------------------------------##
+            ## v1.0.1 changed insertion point of custom php code so it works with firmware version 3004.388.* or 3006.102.* ##
+            ##--------------------------------------------------------------------------------------------------------------##
+            sed -i "/onclick=\"applySettings();\"/r ${CUSTOM_PHP_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
 
             # mount the customized web page with filtering capabilities added
             mount -o bind ${CUSTOM_SYSLOG_ASP_FILE} ${DEFAULT_SYSLOG_ASP_FILE}
@@ -419,7 +436,10 @@ Install() {
 
     # Install complete messages
     Green "${SCRIPT_NAME_DISPLAY} installation complete!"
-    Magenta "   - be sure to run the ModSyslogUI EDIT command (menu option #5), to modify the logFilter.json to exclude System Log records to your likings"
+    ##--------------------------------------------------------------------------##
+    ## v1.0.1 - added verbiage noting it is not necessary to edit the json file ##
+    ##--------------------------------------------------------------------------##
+    Magenta "   - tho not necessary (defaults are fine), run the EDIT command (menu option #5), to modify the logFilter.json to exclude additional Log records to your likings"
 } # end of Install()
 
 Uninstall() {
@@ -620,6 +640,15 @@ if [ ${mode} = "unattended" ]; then
     Logmsg "[ERROR] this script does not support unattended mode operations"
 fi
 
+##-------------------------------------##
+## v1.0.1 added firmware version check ##
+##-------------------------------------##
+# Exit if not running a supported firmware version 
+if ! ${SUPPORTED_FIRMWARE_VERSION}; then
+    Red "Firmware version ${fwInstalledBranchVer} not suppoted - exiting script"
+    exit 5
+fi
+
 # Make sure the version in custom_settings.txt matches the version of this script
 if [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ]; then
 	am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
@@ -632,6 +661,11 @@ case "${1}" in
     ;;
     'install')
         Install
+        ##--------------------------------------------------------------------------##
+        ## v1.0.0 added call to Main_Menu to avoid exiting until specfically exited ##
+        ##--------------------------------------------------------------------------##
+        Press_Enter
+        Main_Menu
     ;;
     'update')
         Update
