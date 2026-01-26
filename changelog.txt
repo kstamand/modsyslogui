@@ -1,3 +1,9 @@
-v1.0.0 (10-Jan-2025)
+v1.0.1 (26-Jan-2026)
+  - Added: Supported firmware version check (3004.388.* and 3006.102.* only)
+  - Updated: Changed install completion verbiage, noting that editing logFilter.json is optional
+  - Added: Added a call to show the Menu at completion of install, instead of exiting the script
+  - Updated: Changed insert point for custom php code (UI filter option) so it will work with either 3004.388.* or 3006.102.*
+
+v1.0.0 (10-Jan-2026)
   - NEW: Inital Production script release
 
