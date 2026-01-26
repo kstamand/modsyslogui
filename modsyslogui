@@ -565,7 +565,7 @@ Main_Menu() {
     Cyan "  (6) Disable      disable dynamic UI filtering capabilities temporarily"
     Cyan "  (7) Enable       select this only if you temporarily disabled dynamic filtering (e.g., troubleshooting)"
     Cyan "  (8) Debug        enable verbose logging for troubleshooting"
-    Cyan "  (9) Uninstall    completely remove HideUIMenus from the router"
+    Cyan "  (9) Uninstall    completely remove ModSyslogUI from the router"
     Cyan "  (e) Exit         exit without doing anything"
     printf "\nMake a selection: "
     read -r input
