@@ -1,4 +1,4 @@
-v1.0.2 (25-Jan31) - Avoid duplicate or conflicting updates
+v1.0.2 (31-Jan-2026) - Avoid duplicate or conflicting updates
   - Update: Added code to check and remove potential duplicate custom mount points used by script
   - Update: Added check to preserve user customizations to logFilter.json if / when Update function is run
 
