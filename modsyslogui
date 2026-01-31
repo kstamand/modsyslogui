@@ -454,7 +454,7 @@ Install() {
     ##---------------------------------------------------------------------------------------------------------------##
     ## v1.0.2 added check if Main_LogStatus_Content.asp exists for this script, since install can run more than once ##
     ##---------------------------------------------------------------------------------------------------------------##
-    if [ -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
+    if [ ! -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
         # remove existing customize asp file if exists
         Green "   - Deleting existing customized System Log page customizations"
         rm ${CUSTOM_SYSLOG_ASP_FILE} 
