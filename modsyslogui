@@ -65,7 +65,7 @@ readonly fwInstalledExtendNum="$(nvram get extendno)"
 readonly fwInstalledBranchVer="${fwInstalledBaseVers}.$(echo "$fwInstalledBuildVers" | awk -F'.' '{print $1}')"
 
 case "$fwInstalledBranchVer" in
-    "3004.388") SUPPORTED_FIRMWARE_VERSION=false ;;
+    "3004.388") SUPPORTED_FIRMWARE_VERSION=true ;;
     "3006.102") SUPPORTED_FIRMWARE_VERSION=true ;;
             *) SUPPORTED_FIRMWARE_VERSION=false
 esac
