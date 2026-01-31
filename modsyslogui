@@ -12,13 +12,14 @@
 # shellcheck disable=SC1091
 # shellcheck disable=SC1234
 # shellcheck disable=SC2034
+# shellcheck disable=SC2155
 # shellcheck disable=SC2164
 # shellcheck disable=SC3037
 # shellcheck disable=SC3043
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2026-01-26
+# Date:         2026-01-31
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
@@ -32,7 +33,7 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.0.1"
+readonly SCRIPT_VERSION="v1.0.2"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
@@ -48,6 +49,8 @@ readonly CUSTOM_SYSLOG_ASP_FILE="${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
 readonly CUSTOM_FUNCTION_FILE="${SCRIPT_NAME_DIR}/customfunction.js"
 readonly CUSTOM_LOGIC_FILE="${SCRIPT_NAME_DIR}/customlogic.js"
 readonly CUSTOM_PHP_FILE="${SCRIPT_NAME_DIR}/customui.php"
+readonly LOGFILTER_MP="/www/ajax/logFilter.json"
+readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
 
 RED_TEXT='\033[31m'
 GREEN_TEXT='\033[32m'
@@ -204,7 +207,7 @@ Download_File() {
     if curl -fsL --retry 3 --connect-timeout 3 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
         if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
             mv -f "/tmp/${1}" "${2}"
-            Green "   - Installed $(basename "${1}")"
+            Green "   - Installing $(basename "${1}")"
         else
             Yellow "  File $(basename "${2}") is already up-to-date"
             rm -f "/tmp/${1}" 2>/dev/null
@@ -265,9 +268,14 @@ Mod_Syslog_Asp() {
     # Parameters: $1 install or uninstall
     case $1 in
         install)
-        if [ -f "${SCRIPT_AUTOSTART_PATH}" ]; then
+        if [ -f "${CUSTOM_SYSLOG_ASP_FILE}" ]; then
+            ##---------------------------------------------------------------------##
+            ## v1.0.2 delete any existing mods, just in case, to avoid duplication ##
+            ##---------------------------------------------------------------------##
+            sed -i '/\/\/++ Start/,/\/\/++ End/d' ${CUSTOM_SYSLOG_ASP_FILE} # delete everything between the "//++ Start" and "//++ End" strings
+
             Green "   - Adding filtering capabilities to System Log UI page"
-            # customxxx files begin with //++ Start ... and end with //++ End ..., where // is a comment
+            # blocks of customizations begin with //++ Start ... and end with //++ End ..., where // is a comment
             # insert filter event handler (submit button on System Log UI)
             sed -i "/applySettings(){/i $(cat ${CUSTOM_FUNCTION_FILE})" ${CUSTOM_SYSLOG_ASP_FILE}
             # insert custom filtering logic, first deleting existing logic
@@ -282,21 +290,47 @@ Mod_Syslog_Asp() {
             # mount the customized web page with filtering capabilities added
             mount -o bind ${CUSTOM_SYSLOG_ASP_FILE} ${DEFAULT_SYSLOG_ASP_FILE}
         else
-            Red "[ERROR] ${SCRIPT_AUTOSTART_PATH} is missing"
+            Red "[ERROR] ${CUSTOM_SYSLOG_ASP_FILE} is missing"
             exit 5
         fi
         ;;
         uninstall)
             Green "   - Removing filtering capabilities from System Log UI page"
-
-            # unmount the customized web page and fall back to the default with no filtering
-            umount ${DEFAULT_SYSLOG_ASP_FILE} 2>/dev/null
+            ##----------------------------------------------##
+            ## v1.0.2 unmount customized System Log UI page ##
+            ##----------------------------------------------##
+            if grep -q " ${SYSLOGPAGE_MP} " /proc/mounts; then
+                while grep -q " ${SYSLOGPAGE_MP} " /proc/mounts; do # unmount multiples, in case more than 1
+                    umount "${SYSLOGPAGE_MP}" 2>/dev/null || break
+                done
+            fi
 
             # copy back the default Asuswrt System Log web page
             cp "${DEFAULT_SYSLOG_ASP_FILE}" "${SCRIPT_NAME_DIR}/"
         ;;
     esac
 } # end of Mod_Syslog_Asp()
+
+##----------------------------------------------------------------------##
+## v1.0.2 added function to control mounting / unmounint logFilter.json ##
+##----------------------------------------------------------------------##
+Mount_Control_Logfilter () {
+    # Parameters: $1 install or uninstall
+    case $1 in
+        install)
+            Green "   - Mounting logFilter.json"
+            mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
+        ;;
+        uninstall)
+            Green "   - Removing customized logFilter.json"
+            if grep -q " ${LOGFILTER_MP} " /proc/mounts; then
+                while grep -q " ${LOGFILTER_MP} " /proc/mounts; do # remove multiples, just in case more than one mounted
+                    umount "${LOGFILTER_MP}" 2>/dev/null || break
+                done
+            fi
+        ;;
+    esac
+} # end of Mount_Control_Logfilter
 
 Setup_Aliases() {
     # Parameters: $1 - install or uninstall
@@ -380,6 +414,7 @@ Install() {
     Scriptinfo
 
     Green "Installing ${SCRIPT_NAME_DISPLAY}"
+    # shellcheck disable=SC2078
     if [ ! Check_Firmware ]; then
         Red "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
         Press_Enter
@@ -392,9 +427,8 @@ Install() {
         Green "   - Creating ${SCRIPT_NAME} ADDON directory"
         mkdir -p "${SCRIPT_NAME_DIR}"
     else
-        Yellow "   ${SCRIPT_NAME} is already installed or remnants of a previous install exist. If you proceed you will loose"
-        Yellow "   >>> any customizations you made to the logFilter.json file"
-        Yellow "   >>> and receive errors trying to remount the Customize System Log Page and logFiler.json file"
+        Yellow "   ${SCRIPT_NAME} is already installed or remnants of a previous install exist."
+        Yellow "   >>> Proceeding will only replace existing files if there is a newer version, no harm otherwise."
         printf "\n"
         Red "   Are you certain you want to proceed? [y=Yes n=No]:"
         printf "\n"
@@ -404,29 +438,53 @@ Install() {
         if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
             Cyan "   - No Changes have been made"
             return 0
+        else 
+            ##----------------------------------------------------------------------##
+            ## v1.0.2 unmount customized System Log Page asp and logFilter.json     ##
+            ## added to avoid double mounting in case install is run more than once ##
+            ##----------------------------------------------------------------------##
+            Mod_Syslog_Asp uninstall
+            Mount_Control_Logfilter uninstall
         fi
     fi
 
     # Download all custom script files
     Download_Script_Files
 
-    # copy over the system's default logFilter.json file 
-    #+ the defaults are fine, but copying over in case user wants to customize
-    Green "   - Copying Asus's default system log filtering file, in case you want to customize defaults"
-    cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
-
-    # mount the default logFilter.json file that was just copied over, so future edits will automatically be reflected in UI
-    mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
+    ##---------------------------------------------------------------------------------------------------------------##
+    ## v1.0.2 added check if Main_LogStatus_Content.asp exists for this script, since install can run more than once ##
+    ##---------------------------------------------------------------------------------------------------------------##
+    if [ -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
+        # remove existing customize asp file if exists
+        Green "   - Deleting existing customized System Log page customizations"
+        rm ${CUSTOM_SYSLOG_ASP_FILE} 
+    fi
 
     # Copy default System Log ASP file to scripts addon directory
     Green "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
     cp "${DEFAULT_SYSLOG_ASP_FILE}" "${SCRIPT_NAME_DIR}/"
 
+    # modify system log web page to add filtering capabilities
+    Mod_Syslog_Asp install
+
+    ##---------------------------------------------------------------------------------------------------##
+    ## v1.0.2 added check if custom logFilter.json exists, so we don't overwrite existing customizations ##
+    ## added this in case the install function is run more than once                                     ##
+    ##---------------------------------------------------------------------------------------------------##
+    if [ ! ${CUSTOM_LOGFILTER_PATH} ]; then
+        # copy over the system's default logFilter.json file 
+        #+ the defaults are fine, but copying over in case user wants to customize
+        Green "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
+        cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
+    fi
+    ##------------------------------------------------------------------------##
+    ## v1.0.2 added call to mount function, instead of mounting directly here ##
+    ##------------------------------------------------------------------------##
+    # mount logFilter.json
+    Mount_Control_Logfilter install
+
     # add autostart_modsyslogui script to services-start, so the customized filtering is installed on router reboot
     Mod_Startup install
-
-    # modify default system log web page to add filtering capabilities
-    Mod_Syslog_Asp install
     
     # add alias command for invoking script
     Setup_Aliases install
@@ -453,6 +511,12 @@ Uninstall() {
 
     # Remove UI custom code
     Mod_Syslog_Asp uninstall
+
+    ##-------------------------------------------##
+    ## v1.0.2 added unmount logFilter.json call ##
+    ##-------------------------------------------##
+    # Unmount any logFilter.json customizations
+    Mount_Control_Logfilter uninstall
 
     # Remove the scripts alias, either under /opt/bin or in profiles.add
     Setup_Aliases uninstall

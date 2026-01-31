@@ -1,3 +1,7 @@
+v1.0.2 (25-Jan31) - Avoid duplicate or conflicting updates
+  - Update: Added code to check and remove potential duplicate custom mount points used by script
+  - Update: Added check to preserve user customizations to logFilter.json if / when Update function is run
+
 v1.0.1 (26-Jan-2026)
   - Added: Supported firmware version check (3004.388.* and 3006.102.* only)
   - Updated: Changed install completion verbiage, noting that editing logFilter.json is optional
@@ -6,4 +10,3 @@ v1.0.1 (26-Jan-2026)
 
 v1.0.0 (10-Jan-2026)
   - NEW: Inital Production script release
-
