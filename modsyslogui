@@ -628,10 +628,10 @@ Uninstall() {
     ## -----------------------------------------------------##
     Mod_ServiceEvent uninstall
 
-    ##-------------------------------##
-    ## v1.1.0 preset manager symlink ##
-    ##-------------------------------##
-    rm /www/user/modsyslogui/presets.json
+    ##-------------------------------------------##
+    ## v1.1.0 preset manager symlink + directory ##
+    ##-------------------------------------------##
+    rm -rf /www/user/modsyslogui
 
     # Remove the scripts addon directory
     Green "   - Removing the scripts addon directory"
