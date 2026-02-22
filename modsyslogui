@@ -635,6 +635,7 @@ Uninstall() {
 
     # Remove the scripts addon directory
     Green "   - Removing the scripts addon directory"
+	cd /tmp
     rm -rf ${SCRIPT_NAME_DIR}
 
     # output completion message
