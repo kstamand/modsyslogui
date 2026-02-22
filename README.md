@@ -100,7 +100,8 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
 4. Presets - a drop down list of previously saved filter actions (Inlcude, Exclude, Logical) and filter text, with the option to select ONE as the default to automatically load and run on System Log page load
 
-<img width="767" height="732" alt="image" src="https://github.com/user-attachments/assets/488fb885-fb5b-406d-9b72-bc066f459d66" />
+<img width="777" height="772" alt="image" src="https://github.com/user-attachments/assets/64f8cec2-ab94-48ed-b3b9-1a6b1c767722" />
+
 
 ## Support
 See [SmallNetBuilder Forum](https://www.snbforums.com/threads/modsyslogui-v1-0-0-released-add-on-providing-system-log-page-ui-filtering-capabilities.96496/) for more information & discussion
