@@ -346,7 +346,7 @@ Mod_ServiceEvent() {
         'uninstall')
 			Green "   - Removing ${SCRIPT_NAME} from service-event"
             # check if service-event line exists and if so, remove any lines found
-            sed -i -e '/'"${PRESET_MANAGER}"'/d' /jffs/scripts/service-event
+            sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
         ;;
     esac
 } # end of Mod_ServiceEvent()
