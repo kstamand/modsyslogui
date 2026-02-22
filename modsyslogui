@@ -13,7 +13,7 @@
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2026-01-31
+# Date:         2026-02-22
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
