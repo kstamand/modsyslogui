@@ -9,13 +9,7 @@
 #----------------------------------------------------------------#
 
 #----------------------------------------------------------------#
-# shellcheck disable=SC1091
-# shellcheck disable=SC1234
-# shellcheck disable=SC2034
-# shellcheck disable=SC2155
-# shellcheck disable=SC2164
-# shellcheck disable=SC3037
-# shellcheck disable=SC3043
+# shellcheck disable=SC1091,SC2034,SC2155,SC3037,SC3043
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
@@ -33,7 +27,7 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.0.2"
+readonly SCRIPT_VERSION="v1.1.0"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
@@ -47,10 +41,22 @@ readonly CUSTOM_LOGFILTER_PATH="${SCRIPT_NAME_DIR}/logFilter.json"
 readonly DEFAULT_SYSLOG_ASP_FILE="/www/Main_LogStatus_Content.asp"
 readonly CUSTOM_SYSLOG_ASP_FILE="${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
 readonly CUSTOM_FUNCTION_FILE="${SCRIPT_NAME_DIR}/customfunction.js"
-readonly CUSTOM_LOGIC_FILE="${SCRIPT_NAME_DIR}/customlogic.js"
-readonly CUSTOM_PHP_FILE="${SCRIPT_NAME_DIR}/customui.php"
+readonly CUSTOM_FILTER_FILE="${SCRIPT_NAME_DIR}/customfilter.js"
+readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
+##---------------------------------------------------##
+## v1.1.0 added debugging toggle and logging to file ##
+##---------------------------------------------------##
+readonly DEBUG_LOG="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}_debug.txt"
+DEBUG_ENABLED=0 # this must not be set to readonly
+exec 3>&1 # IMPORTANT - this is necessary for log file redirection and console display to work properly throughout script
+readonly CONSOLE_FD=3
+##---------------------------------------------------------##
+## v1.1.0 added presets configuration and management files ##
+##---------------------------------------------------------##
+readonly PRESET_MANAGER="$SCRIPT_NAME_DIR/preset_manager.sh"
+readonly PRESET_CONF="$SCRIPT_NAME_DIR/presets.conf"
 
 RED_TEXT='\033[31m'
 GREEN_TEXT='\033[32m'
@@ -74,61 +80,121 @@ case "$fwInstalledBranchVer" in
 esac
 ### End of Script Variables
 
-# -x is a flag to show verbose script output for debugging purposes only
-Debug(){
-    clear
-    set -x
-    Yellow "Debugging enabled ..."
-}
-
 Logmsg() {
-    # Parameters" $1 which is the message to be display in syslog
-    if [ "$#" = "0" ]; then #if no parameters passed, then just return
+    [ "$#" = "0" ] && return
+    logger -t "${SCRIPT_NAME_DISPLAY}" "$*"
+}
+
+##------------------------------------------------------------------------------------------------##
+# v1.1.0 All UI output is explicitly sent to >&3 (the screen) for debug function to work properly ##
+##------------------------------------------------------------------------------------------------##
+Red() { printf -- '\033[1;31m%s\033[0m\n' "${1}" >&3; }
+Green() { printf -- '\033[1;32m%s\033[0m\n' "${1}" >&3; }
+Yellow() { printf -- '\033[1;33m%s\033[0m\n' "${1}" >&3; }
+Magenta() { printf -- '\033[1;35m%s\033[0m\n' "${1}" >&3; }
+Cyan() { printf -- '\033[1;36m%s\033[0m\n' "${1}" >&3; }
+
+##----------------------------------------------------------##
+## v1.1.0 replaced original debug option in order to enable ##
+## capturing log output to a log file                       ##
+##----------------------------------------------------------##
+Enable_Debug() {
+    [ "$DEBUG_ENABLED" = "1" ] && {
+        Yellow "Debug already enabled"
         return
-    fi
-    logger -t "${SCRIPT_NAME_DISPLAY}" "$*" # display any/all parameters passed
-} # end of Logmsg
+    }
 
-Red() {
-    printf -- '\033[1;31m%s\033[0m\n' "${1}"
-}
 
-Green() {
-    printf -- '\033[1;32m%s\033[0m\n' "${1}"
-}
+    mkdir -p "$(dirname "$DEBUG_LOG")"
+    
+    # Standard ash-friendly redirection: Everything goes to log file
+    exec > "$DEBUG_LOG" 2>&1
+    
+    set -x
+    DEBUG_ENABLED=1
+    printf "\n===== Debug enabled: %s =====\n" "$(date)" >>"$DEBUG_LOG"
+    Yellow "Debug enabled and output being captured in ${DEBUG_LOG}"
+} # end Enable_Debug()
 
-Yellow() {
-    printf -- '\033[1;33m%s\033[0m\n' "${1}"
-}
+##--------------------------------##
+## v1.1.0 added Disable Debugging ##
+##--------------------------------##
+Disable_Debug() {
+    [ "$DEBUG_ENABLED" = "0" ] && return
 
-Magenta() {
-    printf -- '\033[1;35m%s\033[0m\n' "${1}"
-}
+    set +x
+    # Restore stdout and stderr to File Descriptor 3 (the screen)
+    exec 1>${CONSOLE_FD} 2>${CONSOLE_FD}
 
-Cyan() {
-    printf -- '\033[1;36m%s\033[0m\n' "${1}"
-}
+    DEBUG_ENABLED=0
+    Yellow "Debug disabled - see ${DEBUG_LOG}"
+} # end Disable_Debug()
+
+##-------------------------------------------------------------------------------------------------##
+## v1.1.0 redirection (>&3) added to keep output on screen after adding debug to log functionality ##
+##-------------------------------------------------------------------------------------------------##
+Press_Enter(){
+    printf "\n" >&3
+    printf "Press enter to continue..." >&3
+    read -r key
+    return 0
+} # end Press_Enter()
+
+Main_Menu() {
+    clear >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
+    # Use 'cat' to ensure banner goes to screen via FD 3
+    sed -n '2,9p' "${SCRIPT_INSTALL_PATH}" >&3
+    Scriptinfo
+    
+    # These functions now use >&3 internally
+    Cyan "  (1) About         explain functionality"
+    Cyan "  (2) Help          information on how to use this script"
+    Cyan "  (3) Install       install all script files"
+    Cyan "  (4) Update        check for script updates"
+    Cyan "  (5) Edit          edit logFilter.json"
+    Cyan "  (6) Disable       disable dynamic UI filtering"
+    Cyan "  (7) Enable        enable dynamic UI filtering"
+    Cyan "  (8) Enable Debug  enable logging to file"
+    Cyan "  (9) Disable debug disable logging"
+    Cyan "  (10) Uninstall    completely remove script"
+    Cyan "  (e) Exit          exit"
+    
+    printf "\nMake a selection: " >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
+    read -r input
+    
+    case "${input}" in
+        '1') clear >&3; About ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
+        '2') clear >&3; Show_Help ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
+        '3') Install ;;
+        '4') Update; exec "${SCRIPT_INSTALL_PATH}" ;; # v1.1.0 - re-execute script to show updated ver
+        '5') Edit ;;
+        '6') Disable_Filter ;;
+        '7') Enable_Filter ;;
+        '8') Enable_Debug ;; # v1.1.0 - renamed after adding logging to file + disable_debut
+        '9') Disable_Debug ;; # v1.1.0 - added toggle
+        '10') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
+        'e'|'E'|'exit') return ;;
+        *) printf "\n" >&3; Red "[ERROR] ${input} is not a valid option!" ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
+    esac
+    Press_Enter
+    Main_Menu
+} # end Main_Menu
 
 About() {
     Scriptinfo
-    echo -e "${CYAN_TEXT}"
+    # v1.1.0 Wrap 'cat' blocks to FD 3 so they show on screen during debug
+    {
     cat <<EOF
-License:
-${SCRIPT_NAME_DISPLAY} is free to use under the GNU General Public License, version 3 (GPL-3.0).
-https://opensource.org/licenses/GPL-3.0
-
-For discussion visit this thread:
-https://www.snbforums.com/forums/asuswrt-merlin-addons.60/?prefix_id=8
-https://github.com/kstamand/ModSyloogUI(Source Code)
-
-About:
-This script adds dynamic filtering capabilities (Show All, Include only, Exclude strings) to the routers System Log web page
+License: ${SCRIPT_NAME_DISPLAY} is free to use under MIT license.
+About: This script adds dynamic filtering to the System Log web page.
 EOF
-echo -e "${RESET}"
-} # end of about() information
+    } >&3 # v1.1.0
+} # end About()
 
 Show_Help() {
     echo -e "${CYAN_TEXT}"
+    # v1.1.0 Wrap 'cat' blocks to FD 3 so they show on screen during debug
+    {
     cat <<EOF
 The default filtering capabilities on the Systme Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
@@ -150,11 +216,13 @@ For reference, the following are the default contents of the "logFilter.json" fi
     ]
     }
 EOF
+    } >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
 echo -e "${RESET}"
 } # end Show_Help ()
 
 Show_ArgsHelp () {
     echo -e "${YELLOW_TEXT}"
+    {
     cat <<EOF
 Rerun the script with no arguments or use one of the following:
    modsyslogui menu 
@@ -164,29 +232,16 @@ Rerun the script with no arguments or use one of the following:
    modsyslogui enable"
    modsyslogui uninstall"
 EOF
+    } >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
 echo -e "${RESET}"
 } # end Show_ArgsHelp()
 
 Scriptinfo() {
     # Version header used in interactive sessions
-    printf "\n"
+    printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
     Green "${SCRIPT_NAME_DISPLAY} ${SCRIPT_VERSION}"
-    printf "\n"
+    printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
 } # end of Scriptinfo ()
-
-Press_Enter(){
-    printf "\n"
-    while true; do
-        printf "Press enter to continue..."
-        read -r "key"
-        case "${key}" in
-            *)
-                break
-            ;;
-        esac
-    done
-    return 0
-} # end of Press_Enter()
 
 Check_Firmware() {
     Green "   - Checking firmware support"
@@ -225,17 +280,23 @@ Download_Script_Files() {
     chmod 755 ${SCRIPT_INSTALL_PATH} # make script executable
 
     # download ModSyslogUI services-start script
-    Download_File "$(basename "${SCRIPT_AUTOSTART_PATH}")" "${SCRIPT_AUTOSTART_PATH}" #ModSyslogUI script
+    Download_File "$(basename "${SCRIPT_AUTOSTART_PATH}")" "${SCRIPT_AUTOSTART_PATH}" #auto startup script
     chmod 755 ${SCRIPT_AUTOSTART_PATH} # make script executable
 
     # download custom asp function file
-    Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #ModSyslogUI script
+    Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #UI custom function code
 
     # download custom ui logic file
-    Download_File "$(basename "${CUSTOM_LOGIC_FILE}")" "${CUSTOM_LOGIC_FILE}" #ModSyslogUI script
+    Download_File "$(basename "${CUSTOM_FILTER_FILE}")" "${CUSTOM_FILTER_FILE}" #UI custom filtering code
 
     # download custom ui PHP file
-    Download_File "$(basename "${CUSTOM_PHP_FILE}")" "${CUSTOM_PHP_FILE}" #ModSyslogUI script
+    Download_File "$(basename "${CUSTOM_UI_FILE}")" "${CUSTOM_UI_FILE}" #UI custom xml code
+
+    # download preset manager script
+    Download_File "$(basename "${PRESET_MANAGER}")" "${PRESET_MANAGER}" #UI custom xml code
+
+    # download sample presets configuration file
+    Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #UI custom xml code
 } # end of Download_Script_Files()
 
 Mod_Startup() {
@@ -248,7 +309,7 @@ Mod_Startup() {
                 # delete any existing modsyslogui lines just in case
                 sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
                 echo "${SCRIPT_AUTOSTART_PATH} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
-			# a service-event file did not exist, so create one
+			# a service-start file did not exist, so create one
             else
 				echo "#!/bin/sh" > /jffs/scripts/services-start
                 echo " " >> /jffs/scripts/services-start
@@ -262,31 +323,51 @@ Mod_Startup() {
             sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
         ;;
     esac
-} # end of Auto_Start()
+} # end of Mod_Start()
+
+Mod_ServiceEvent() {
+    # Parameters: $1 - install or uninstall
+    case $1 in
+        'install')
+            Green "   - Adding ${SCRIPT_NAME} service-event line"
+            # check if a service-event file exists and process as follows
+			if [ -f /jffs/scripts/service-event ]; then
+                # delete any existing modsyslogui lines just in case
+                sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
+                echo "${PRESET_MANAGER} # added by ${SCRIPT_NAME}" >> /jffs/scripts/service-event
+			# a service-event file did not exist, so create one
+            else
+				echo "#!/bin/sh" > /jffs/scripts/service-event
+                echo " " >> /jffs/scripts/service-event
+                echo "${PRESET_MANAGER} # added by ${SCRIPT_NAME}" >> /jffs/scripts/service-event
+				chmod 0755 /jffs/scripts/service-event
+			fi
+        ;;
+        'uninstall')
+			Green "   - Removing ${SCRIPT_NAME} from service-event"
+            # check if service-event line exists and if so, remove any lines found
+            sed -i -e '/'"${PRESET_MANAGER}"'/d' /jffs/scripts/service-event
+        ;;
+    esac
+} # end of Mod_ServiceEvent()
 
 Mod_Syslog_Asp() {
     # Parameters: $1 install or uninstall
     case $1 in
         install)
         if [ -f "${CUSTOM_SYSLOG_ASP_FILE}" ]; then
-            ##---------------------------------------------------------------------##
-            ## v1.0.2 delete any existing mods, just in case, to avoid duplication ##
-            ##---------------------------------------------------------------------##
-            sed -i '/\/\/++ Start/,/\/\/++ End/d' ${CUSTOM_SYSLOG_ASP_FILE} # delete everything between the "//++ Start" and "//++ End" strings
-
             Green "   - Adding filtering capabilities to System Log UI page"
-            # blocks of customizations begin with //++ Start ... and end with //++ End ..., where // is a comment
-            # insert filter event handler (submit button on System Log UI)
-            sed -i "/applySettings(){/i $(cat ${CUSTOM_FUNCTION_FILE})" ${CUSTOM_SYSLOG_ASP_FILE}
-            # insert custom filtering logic, first deleting existing logic
-            sed -i '/var\ _string/,/.innerHTML\ =\ _log/{/var\ _string/n;/.innerHTML\ =\ _log/!d;}' ${CUSTOM_SYSLOG_ASP_FILE}
-            sed -i "/var\ _string/r ${CUSTOM_LOGIC_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
-            # insert custom webpage php code
-            ##--------------------------------------------------------------------------------------------------------------##
-            ## v1.0.1 changed insertion point of custom php code so it works with firmware version 3004.388.* or 3006.102.* ##
-            ##--------------------------------------------------------------------------------------------------------------##
-            sed -i "/onclick=\"applySettings();\"/r ${CUSTOM_PHP_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
+            # check and remove any existing custom code added by this addon
+            sed -i '/\/\/++ Start custom function/,/\/\/++ End custom function/d' ${CUSTOM_SYSLOG_ASP_FILE}
+            sed -i '/\/\/++ Start Custom UI/,/\/\/++ End Custom UI/d' ${CUSTOM_SYSLOG_ASP_FILE}
+            # insert custom filtering globals, vars, and helpers
+            sed -i "/^<script>$/r ${CUSTOM_FUNCTION_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
+            # remove the default log record handling function
+            sed -i '/var logString = htmlEnDeCode/,/setTimeout(get_log_data, 3000);/d' ${CUSTOM_SYSLOG_ASP_FILE}
+            sed -i "/success: function(response){/r ${CUSTOM_FILTER_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
 
+            # insert custom ui xml codeing 
+            sed -i "/onclick=\"applySettings();\"/r ${CUSTOM_UI_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}" #v1.0.1 changed insertion point
             # mount the customized web page with filtering capabilities added
             mount -o bind ${CUSTOM_SYSLOG_ASP_FILE} ${DEFAULT_SYSLOG_ASP_FILE}
         else
@@ -443,7 +524,7 @@ Install() {
             ## v1.0.2 unmount customized System Log Page asp and logFilter.json     ##
             ## added to avoid double mounting in case install is run more than once ##
             ##----------------------------------------------------------------------##
-            Mod_Syslog_Asp uninstall
+            Mod_Syslog_Asp uninstall 
             Mount_Control_Logfilter uninstall
         fi
     fi
@@ -492,6 +573,24 @@ Install() {
     # create Asuswrt third party addon name space with version information
     Custom_Settings installl
 
+    ##---------------------------------------------------##
+    ## v1.1.0 add preset_manager.sh to service-event     ##
+    ## for when addon-api is triggerd to add|edit|delete ##
+    ## preset filters                                    ##
+    ## --------------------------------------------------##
+    Mod_ServiceEvent install
+
+    ##-------------------------------------##
+    ## v1.1.0 add symlink for presets.conf ##
+    ##-------------------------------------##
+    mkdir /www/user/modsyslogui  # first, need to create directory for symlink to live in
+    ln -sf /jffs/addons/modsyslogui/presets.conf /www/user/modsyslogui/presets.json
+
+    ##-------------------------------------------##
+    ## v1.1.0 make preset_manager.sh executeable ##
+    ##-------------------------------------------##
+    chmod +x ${PRESET_MANAGER}
+
     # Install complete messages
     Green "${SCRIPT_NAME_DISPLAY} installation complete!"
     ##--------------------------------------------------------------------------##
@@ -523,6 +622,16 @@ Uninstall() {
 
     # Remove the addons custom-settings.txt entry
     Custom_Settings uninstall
+
+    ##------------------------------------------------------##
+    ## v1.1.0 remove preset_manager.sh frin service-event   ##
+    ## -----------------------------------------------------##
+    Mod_ServiceEvent uninstall
+
+    ##-------------------------------##
+    ## v1.1.0 preset manager symlink ##
+    ##-------------------------------##
+    rm /www/user/modsyslogui/presets.json
 
     # Remove the scripts addon directory
     Green "   - Removing the scripts addon directory"
@@ -616,74 +725,9 @@ Enable_Filter () {
     Mod_Syslog_Asp install
 } # end of Add_Filter()
 
-Main_Menu() {
-    local yn
-    clear
-    sed -n '2,9p' "${SCRIPT_INSTALL_PATH}"		# display banner
-    Scriptinfo
-    Cyan "  (1) About        explain functionality"
-    Cyan "  (2) Help         information on how to use this script"
-    Cyan "  (3) Install      install all script files"
-    Cyan "  (4) Update       check for script updates"
-    Cyan "  (5) Edit         edit the hard coded filtering file (logFilter.json), which filter regardless of dynamic UI filtering"
-    Cyan "  (6) Disable      disable dynamic UI filtering capabilities temporarily"
-    Cyan "  (7) Enable       select this only if you temporarily disabled dynamic filtering (e.g., troubleshooting)"
-    Cyan "  (8) Debug        enable verbose logging for troubleshooting"
-    Cyan "  (9) Uninstall    completely remove ModSyslogUI from the router"
-    Cyan "  (e) Exit         exit without doing anything"
-    printf "\nMake a selection: "
-    read -r input
-    case "${input}" in
-        '1')
-            clear
-            About
-        ;;
-        '2')
-            clear
-            Show_Help
-        ;;
-        '3')
-            Install
-        ;;
-        '4')
-            Update
-        ;;
-        '5')
-            Edit
-        ;;
-        '6')
-            Disable_Filter
-        ;;
-        '7')
-            Enable_Filter
-        ;;
-        '8')
-            Debug
-        ;;
-        '9')
-            Uninstall
-            Magenta "   - Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"
-            exit
-        ;;
-        'e'|'E'|'exit')
-            return
-        ;;
-        *)
-            printf "\n"
-            Red "[ERROR] ${input} is not a valid option!"
-            printf "\n"
-            exit 5
-        ;;
-    esac
-    Press_Enter
-    Main_Menu		# stay in the menu loop until exit is chosen
-} # end of Main_Menu()
-
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
-##
 ## Script Mainline
-##
-clear
+clear >&3 # v1.1.0 - added redirection (>3) to keep output on screen after adding debug to log functionality
 
 # check to make sure only one argument passed, exit otherwise
 if [ $# -gt 1 ]; then
@@ -720,33 +764,11 @@ fi
 
 # Check and process the argument passed when calling this script
 case "${1}" in
-    'menu'|'')
-        Main_Menu
-    ;;
-    'install')
-        Install
-        ##--------------------------------------------------------------------------##
-        ## v1.0.0 added call to Main_Menu to avoid exiting until specfically exited ##
-        ##--------------------------------------------------------------------------##
-        Press_Enter
-        Main_Menu
-    ;;
-    'update')
-        Update
-    ;;
-    'disable')
-        Disable_Filter
-    ;;
-    'enable')
-        Enable_Filter
-    ;;
-    'uninstall')
-        Uninstall
-    ;;
-    *)
-    Red "${1} is an unknown argument"
-    printf "\n"
-    Show_ArgsHelp
-    exit 1
-    ;;
+    'menu'|'') Main_Menu ;;
+    'install') Install; Press_Enter; Main_Menu ;; #v1.0.2 - added Press_Enter and Main_Menu to avoid exiting script
+    'update') Update ;;
+    'disable') Disable_Filter ;;
+    'enable') Enable_Filter ;;
+    'uninstall') Uninstall ;;
+    *) Red "${1} is an unknown argument"; exit 1 ;;
 esac

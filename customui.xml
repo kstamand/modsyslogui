@@ -1,0 +1,82 @@
+<!-- //++ Start modsyslogui custom xml -->
+<script>
+    /* Official Merlin API: Fetch existing settings object */
+    var custom_settings = <% get_custom_settings(); %>;
+</script>
+
+<style>
+    #filter_engine_fieldset { border: 1px solid #6b8fa3; border-radius: 4px; padding: 10px 15px; margin: 10px 0; background: #2f3a3e; }
+    .filter-legend { color: #5adad2; font-weight: bold; margin-left: 10px; padding: 0 5px; }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+    #filter_text { width: 100%; max-width: 700px; height: 26px; background-color: #000; color: #00FF00; border: 1px solid #444; padding: 2px 8px; font-family: 'Courier New', Courier, monospace; }
+    #logical-validation { color: #ff4d4d !important; font-weight: bold; font-size: 11px; margin: 2px 0 8px 5px; min-height: 14px; }
+    .help-link { color: #5adad2; cursor: pointer; font-size: 11px; text-decoration: underline; margin-bottom: 5px; display: inline-block; }
+    .help-content { color: #bdc3c7; font-size: 11px; margin: 5px 0 10px 5px; line-height: 1.4; border-left: 2px solid #5adad2; padding-left: 8px; }
+    #preset_modal { position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; }
+    .modal-content { background: #252d30; border: 1px solid #6b8fa3; padding: 20px; border-radius: 3px; width: 360px; }
+    .modal-content label { display: block; color: #5adad2; margin: 10px 0 4px 0; font-size: 12px; font-weight: bold; }
+    .modal-content input[type="text"], .modal-content select { width: 100%; background: #000; color: #FFF; border: 1px solid #555; padding: 6px; box-sizing: border-box; }
+    .collapsed { display: none !important; }
+    .modal-btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+</style>
+
+<iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
+
+<form method="post" name="msui_form" action="start_apply.htm" target="hidden_frame">
+    <input type="hidden" name="amng_custom" id="amng_custom" value="">
+    <input type="hidden" name="action_mode" value="apply">
+    <input type="hidden" name="action_script" value="modsyslogui">
+    <input type="hidden" name="action_wait" value="2">
+    <input type="hidden" name="current_page" value="Main_LogStatus_Content.asp">
+
+    <fieldset id="filter_engine_fieldset">
+        <legend class="filter-legend">Log Filtering Engine</legend>
+        <div class="filter-row">
+            <span><input type="radio" id="ShowAll" name="filter_options" checked onclick="debounceFilter()"><label for="ShowAll"> Show All</label></span>
+            <span><input type="radio" id="Include" name="filter_options" onclick="debounceFilter()"><label for="Include"> Include</label></span>
+            <span><input type="radio" id="Exclude" name="filter_options" onclick="debounceFilter()"><label for="Exclude"> Exclude</label></span>
+            <span><input type="radio" id="Logical" name="filter_options" onclick="debounceFilter()"><label for="Logical"> Logical</label></span>
+        </div>
+        <div class="filter-row">
+            <input type="text" id="filter_text" onkeyup="debounceFilter()" placeholder="e.g. eth1, kernel, drop AND accept" autocomplete="off">
+        </div>
+        <div id="logical-validation" class="collapsed"></div>
+        <div class="help-link" onclick="document.getElementById('help_content').classList.toggle('collapsed')">&#9662; Show Help & Examples</div>
+        <div id="help_content" class="help-content collapsed">
+            • <strong>Multi-term:</strong> Use commas for Include/Exclude (e.g. kernel, eth0).<br>
+            • <strong>Logical:</strong> Use <strong>AND | OR | AND NOT</strong> (Uppercase).
+        </div>
+        <div class="filter-row" style="margin-top: 12px; border-top: 1px solid #444; padding-top: 12px;">
+            <span style="color: #FFF; font-size: 12px;">Presets:</span>
+            <select id="preset_select" class="input_option" style="width: 170px; height: 26px;" onchange="applyPresetSelection(this.value)">
+                <option value="">-- Select Preset --</option>
+            </select>
+            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="openPresetModal('save')" value="Save">
+            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="openPresetModal('edit')" value="Edit">
+            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="handlePresetAction('delete')" value="Delete">
+        </div>
+    </fieldset>
+</form>
+
+<div id="preset_modal" class="collapsed">
+    <div class="modal-content">
+        <h3 id="modal_title" style="color:#5adad2; margin:0 0 10px 0;">Manage Preset</h3>
+        <label>Preset Name</label><input type="text" id="m_preset_name">
+        <label>Description</label><input type="text" id="m_preset_desc">
+        <label>Filter Mode</label>
+        <select id="m_preset_mode">
+            <option value="Include">Include</option>
+            <option value="Exclude">Exclude</option>
+            <option value="Logical">Logical</option>
+        </select>
+        <label>Filter Text</label><input type="text" id="m_preset_text">
+        <div style="margin-top:15px; color:#FFF; font-size:12px;">
+            <input type="checkbox" id="m_preset_default"> <label for="m_preset_default">Load automatically</label>
+        </div>
+        <div class="modal-btn-group">
+            <input type="button" class="button_gen" onclick="closePresetModal()" value="Cancel">
+            <input type="button" class="button_gen" onclick="confirmPresetSave()" value="Confirm">
+        </div>
+    </div>
+</div>
+<!-- //++ End modsyslogui custom xml -->

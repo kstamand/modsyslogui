@@ -1,4 +1,13 @@
-v1.0.2 (25-Jan31) - Avoid duplicate or conflicting updates
+v1.1.0 (22-Feb-2026)
+  - Added: UI - Filter presets (Save, Edit, Delete)
+  - Added: UI - inline filter validation
+  - Added: UI - dynamic help information
+  - Updated: UI - expanded filter logic capabilities beyond simple AND, OR, AND NOT to now include tag: term OPERATOR term
+  - Fixed: Script - invalid menu option handling (return to menu, and not exit), to show the latest version info in menu after update
+  - Added: Script - added debuging to file capabilities
+  - Updated: README - updated with Preset filtering information and added MIT License info
+
+v1.0.2 (31-Jan-2026) - Avoid duplicate or conflicting updates
   - Update: Added code to check and remove potential duplicate custom mount points used by script
   - Update: Added check to preserve user customizations to logFilter.json if / when Update function is run
 
