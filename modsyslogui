@@ -552,7 +552,7 @@ Install() {
     ## v1.0.2 added check if custom logFilter.json exists, so we don't overwrite existing customizations ##
     ## added this in case the install function is run more than once                                     ##
     ##---------------------------------------------------------------------------------------------------##
-    if [ ! ${CUSTOM_LOGFILTER_PATH} ]; then
+    if [ ! -f ${CUSTOM_LOGFILTER_PATH} ]; then
         # copy over the system's default logFilter.json file 
         #+ the defaults are fine, but copying over in case user wants to customize
         Green "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
