@@ -1,0 +1,18 @@
+//++ Start .gitignore
+# System junk
+.DS_Store
+Thumbs.db
+
+# Router/Testing temp files
+# (Add any local log files or test outputs you generate)
+nc.txt
+*.log
+temp/
+
+# Preset backups (if you pull them for manual editing)
+*.conf.bak
+
+# VS Code or Editor specific settings
+.vscode/
+.idea/
+//++ End .gitignore
