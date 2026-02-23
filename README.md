@@ -114,7 +114,9 @@ In the event script or UI filtering options do not work, collect and provide the
 - if the UI filtering is not working as expected, open the browser's DEV TOOLS (you may need to enable that first) and capture a screenshot of any CONSOLE errors, then post them in the ModSyslogUI thread of snbforums
 - in certain instances, I may ask for a copy of the /jffs/addons/modsyslogui/Main_LogStatus_Content.asp file (all the filtering magic happens here). In that event, run the following command and attache the log.txt to ModSyslogUI thread explaining the issue
 
-	```cat /jffs/addons/modsyslogui/Main_LogStatus_Content.asp > log.txt```
+```Shell
+cat /jffs/addons/modsyslogui/Main_LogStatus_Content.asp > log.txt
+```
 
 ## License
 
