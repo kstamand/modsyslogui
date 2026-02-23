@@ -32,7 +32,7 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 
 
 ## Install:
-*Requires Asuswrt-Merlin and JFFS enabled
+*Requires Asuswrt-Merlin and JFFS enabled*
 
 SSH to the router and enter:
 
@@ -76,7 +76,7 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 ALL System log records, generally start with a date and a tag. Examples;
 - The majority of ADDON script contributors prefix their log records with the name of their script (e.g., Diversion, Skynet, Scribe, ...)
 - Other than that, scan log records for unique strings from a given record to inlude / exclude, such as
-  - wireless events (leaving or joining) = wlcevented
+  - wireless events (wlcevented)
   - ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
   - specific tags /addon script names (e.g., log records starting with modsyslogui)
 	 
@@ -98,7 +98,8 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 1. Show all log records (default option) - nothing need be entered in the dialog box under the three options. All system log records are displayed, minus those log records matching one of the strings in the logFilter.json file
 2. Include only - enter a string or series of strings separated by a comma, with no spaces, to only show log records matching the string(s)
 3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
-4. Presets - a drop down list of previously saved filter actions (Inlcude, Exclude, Logical) and filter text, with the option to select ONE as the default to automatically load and run on System Log page load
+4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT and term any string
+5.  Presets - a drop down list of previously saved filter actions (Inlcude, Exclude, Logical) and filter text, with the option to select ONE as the default to automatically load and run on System Log page load
 
 <img width="777" height="772" alt="image" src="https://github.com/user-attachments/assets/64f8cec2-ab94-48ed-b3b9-1a6b1c767722" />
 
@@ -111,6 +112,9 @@ In the event script or UI filtering options do not work, collect and provide the
 - screenshot of error either on the UI or script from SSH session
 - if the modsyslogui shell script is generating an error, enable the DEBUG option to capture the error, then attached the MODSYSLOGUI_DEBUB.TXT to your post in the ModSyslogUI thread of snbforums
 - if the UI filtering is not working as expected, open the browser's DEV TOOLS (you may need to enable that first) and capture a screenshot of any CONSOLE errors, then post them in the ModSyslogUI thread of snbforums
+- in certain instances, I may ask for a copy of the /jffs/addons/modsyslogui/Main_LogStatus_Content.asp file (all the filtering magic happens here). In that event, run the following command and attache the log.txt to ModSyslogUI thread explaining the issue
+
+	```cat /jffs/addons/modsyslogui/Main_LogStatus_Content.asp > log.txt```
 
 ## License
 
