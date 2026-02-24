@@ -57,6 +57,8 @@ readonly CONSOLE_FD=3
 ##---------------------------------------------------------##
 readonly PRESET_MANAGER="$SCRIPT_NAME_DIR/preset_manager.sh"
 readonly PRESET_CONF="$SCRIPT_NAME_DIR/presets.conf"
+readonly WWW_PRESET_DIR="/www/user/modsyslogui/"
+readonly WWW_PRESET_JSON="/www/user/modsyslogui/presets.json"
 
 RED_TEXT='\033[31m'
 GREEN_TEXT='\033[32m'
@@ -583,8 +585,10 @@ Install() {
     ##-------------------------------------##
     ## v1.1.0 add symlink for presets.conf ##
     ##-------------------------------------##
-    mkdir /www/user/modsyslogui  # first, need to create directory for symlink to live in
-    ln -sf /jffs/addons/modsyslogui/presets.conf /www/user/modsyslogui/presets.json
+    if [ ! -f ${WWW_PRESET_JSON} ]; then
+		mkdir ${WWW_PRESET_DIR}  # first, need to create directory for symlink to live in
+    	ln -sf ${PRESET_CONF} ${WWW_PRESET_JSON}
+	fi
 
     ##-------------------------------------------##
     ## v1.1.0 make preset_manager.sh executeable ##
