@@ -116,8 +116,19 @@
         var d = document.getElementById("m_preset_desc").value.trim().replace(/\|/g, "");
         var m = document.getElementById("m_preset_mode").value;
         var t = document.getElementById("m_preset_text").value.trim().replace(/\|/g, "");
-        var def = document.getElementById("m_preset_default").checked ? "true" : "false";
         
+        var isDefault = document.getElementById("m_preset_default").checked;
+        var def = isDefault ? "true" : "false";
+        
+        /**
+         * LOGIC: If saving a new default, we change the action prefix to 'setdefault'.
+         * This signals the shell script to unset existing stars before saving this one.
+         */
+        var action = window.currentModalAction;
+        if (isDefault) {
+            action = "setdefault";
+        }
+
         if(!n) { alert("Name required."); return; }
         if (m === "Logical") {
             var up = t.toUpperCase();
@@ -125,10 +136,8 @@
                 alert("Logical mode requires: AND, OR, or AND NOT"); return;
             }
         }
-        /**
-         * format of a preset record is name | description | mode ( Show All, Include, Exclude, Logical) | text | default (true or false)
-         */
-        var payload = window.currentModalAction + ":" + n + "|" + d + "|" + m + "|" + t + "|" + def;
+
+        var payload = action + ":" + n + "|" + d + "|" + m + "|" + t + "|" + def;
         submitToRouter(payload);
         window.closePresetModal();
     };
