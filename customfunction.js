@@ -181,9 +181,9 @@
         }
 
         // 3. Visual feedback using firmware built-ins
-        if (typeof showLoading === 'function') {
+        /* if (typeof showLoading === 'function') {
             showLoading(2);
-        }
+        } */
 
         // 4. Submit to hidden_frame to avoid UI refresh
         if (document.msui_form) {
