@@ -334,12 +334,12 @@ Mod_ServiceEvent() {
 			if [ -f /jffs/scripts/service-event ]; then
                 # delete any existing modsyslogui lines just in case
                 sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
-                echo "[ "$2" = modsyslogui ] && ${PRESET_MANAGER} # added by ${SCRIPT_NAME} &" >> /jffs/scripts/service-event
+                echo "[ \"\$2\" = modsyslogui ] && ${PRESET_MANAGER} # added by ${SCRIPT_NAME} &" >> /jffs/scripts/service-event
 			# a service-event file did not exist, so create one
             else
 				echo "#!/bin/sh" > /jffs/scripts/service-event
                 echo " " >> /jffs/scripts/service-event
-                echo "[ "$2" = modsyslogui ] && ${PRESET_MANAGER} # added by ${SCRIPT_NAME} &" >> /jffs/scripts/service-event
+                echo "[ \"\$\2" = modsyslogui ] && ${PRESET_MANAGER} # added by ${SCRIPT_NAME} &" >> /jffs/scripts/service-event
 				chmod 0755 /jffs/scripts/service-event
 			fi
         ;;
