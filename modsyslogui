@@ -635,7 +635,7 @@ Uninstall() {
     ##-------------------------------------------##
     ## v1.1.0 preset manager symlink + directory ##
     ##-------------------------------------------##
-    rm -rf /www/user/modsyslogui
+    rm -rf ${WWW_PRESET_DIR}
 
     # Remove the scripts addon directory
     Green "   - Removing the scripts addon directory"
