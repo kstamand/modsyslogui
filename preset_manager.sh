@@ -34,6 +34,16 @@ PAYLOAD=$(echo "$RAW_DATA" | cut -d: -f2-)
 /usr/bin/logger -t ModSyslogUI "Action: $ACTION"
 
 case "$ACTION" in
+    "setdefault")
+        # Global Unset: Change any existing '|true' to '|false'
+        sed -i 's/|true$/|false/' "$PRESET_CONF"
+        
+        NAME=$(echo "$PAYLOAD" | cut -d'|' -f1)
+        sed -i "/^$NAME|/d" "$PRESET_CONF"
+        echo "$PAYLOAD" >> "$PRESET_CONF"
+        sort -u -o "$PRESET_CONF" "$PRESET_CONF"
+        /usr/bin/logger -t ModSyslogUI "Set $NAME as new global default."
+        ;;
     "save"|"edit")
         NAME=$(echo "$PAYLOAD" | cut -d'|' -f1)
         sed -i "/^$NAME|/d" "$PRESET_CONF"
