@@ -295,10 +295,10 @@ Download_Script_Files() {
     Download_File "$(basename "${CUSTOM_UI_FILE}")" "${CUSTOM_UI_FILE}" #UI custom xml code
 
     # download preset manager script
-    Download_File "$(basename "${PRESET_MANAGER}")" "${PRESET_MANAGER}" #UI custom xml code
+    Download_File "$(basename "${PRESET_MANAGER}")" "${PRESET_MANAGER}" #Preset manager script
 
     # download sample presets configuration file
-    Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #UI custom xml code
+    Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #Preset configuration\list of personalized presets file 
 } # end of Download_Script_Files()
 
 Mod_Startup() {
