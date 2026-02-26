@@ -298,7 +298,7 @@ Download_Script_Files() {
     Download_File "$(basename "${PRESET_MANAGER}")" "${PRESET_MANAGER}" #Preset manager script
 
     # download sample presets configuration file
-    Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #Preset configuration\list of personalized presets file 
+    # Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #Preset configuration\list of personalized presets file 
 } # end of Download_Script_Files()
 
 Mod_Startup() {
