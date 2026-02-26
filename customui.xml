@@ -45,8 +45,11 @@
         <div id="help_content" class="help-content collapsed">
             • <strong>Show-All:</strong> is the default filter, unless you have a Preset set as the default (<span style="color: #007BFF;">Load automatically</span>).<br>
             • <strong>Include/Exclude:</strong> Use comma separated terms (e.g. kernel, eth0). Matches any log record containing one of those terms<br>
-            • <strong>Logical:</strong> Use <strong>AND | OR | AND NOT</strong> (Uppercase Only). (e.g., Get AND error)<br> 
-            • <strong>Presets:</strong> Allows you to SAVE | EDIT | DELETE a <strong>Personalized (<span style="color: #007BFF;">Initially Blank</span>)</strong> list of your favorite filters.
+            • <strong>Logical:</strong> Use <strong>AND | OR | AND NOT</strong> (Uppercase Only). (e.g., Get AND error)<br>
+                <span style="color: #28A745;">Enhanced Logical filtering also supported, based on TAGS (e.g., kernel: bcm AND Error)</span><br> 
+            • <strong>Presets:</strong> Allows you to SAVE | EDIT | DELETE a <strong>Personalized (<span style="color: #007BFF;">Initially Blank</span>)</strong> list of your favorite filters.<br>
+                <span style="color: #28A745;">To Create a Preset - Select a filter button, then enter desired filter text.</span><br>
+                <span style="color: #28A745;">Once you are happy with the filter results, hit the Preset SAVE button and fill in form (Description and Load Automatically are optional)</span>
         </div>
         <div class="filter-row" style="margin-top: 12px; border-top: 1px solid #444; padding-top: 12px;">
             <span style="color: #FFF; font-size: 12px;">Presets:</span>
