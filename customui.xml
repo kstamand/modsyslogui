@@ -43,7 +43,7 @@
         <div id="logical-validation" class="collapsed"></div>
         <div class="help-link" onclick="document.getElementById('help_content').classList.toggle('collapsed')">&#9662; Show Help & Examples</div>
         <div id="help_content" class="help-content collapsed">
-            • <strong>Show-All:</strong> is the default filter, unless you have a Preset set as the default (<span style=color: #007BFF;">Load automatically</span>).<br>
+            • <strong>Show-All:</strong> is the default filter, unless you have a Preset set as the default (<span style="color: #007BFF;">Load automatically</span>).<br>
             • <strong>Include/Exclude:</strong> Use comma separated terms (e.g. kernel, eth0). Matches any log record containing one of those terms<br>
             • <strong>Logical:</strong> Use <strong>AND | OR | AND NOT</strong> (Uppercase Only). (e.g., Get AND error)<br> 
             • <strong>Presets:</strong> Allows you to SAVE | EDIT | DELETE a <strong>Personalized (<span style="color: #007BFF;">Initially Blank</span>)</strong> list of your favorite filters.
