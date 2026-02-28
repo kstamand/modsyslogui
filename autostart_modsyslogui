@@ -11,3 +11,7 @@ if [ -f /jffs/addons/modsyslogui/Main_LogStatus_Content.asp ]; then
     logger -t modsyslogui "Mounting customized System Log page"
     mount -o bind /jffs/addons/modsyslogui/Main_LogStatus_Content.asp /www/Main_LogStatus_Content.asp
 fi
+
+# Add symlink for presets
+mkdir /www/user/modsyslogui  # first, need to create directory for symlink to live in
+ln -sf /jffs/addons/modsyslogui/presets.conf /www/user/modsyslogui/presets.json

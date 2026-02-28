@@ -1,6 +1,4 @@
-![ShellCheck](https://img.shields.io/badge/ShellCheck-passing-brightgreen)
-
-# modsyslogui - Customize router's "System Log" page with custom filtering capabilities
+# ModSyslogUI - Customize router's "System Log" page with custom filtering capabilities
 ## About:
 The default filtering capabilities of what is <ins>displayed</ins> on the System Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
@@ -11,13 +9,12 @@ This script also updates the System Log page of the Router UI to include dynamic
      Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)  
    - Exlude all log records containing the string or strings of text you chose (separate each by a comma)  
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
-   - Use the logical operators AND or OR or AND NOT to filter the log records to display  
+   - Use simple logical operators AND or OR or AND NOT to filter the log records to display  
      Example - only show kernel error msgs (e.g., Jan  8 00:02:32 kernel: WLC_SCB_DEAUTHORIZE error (-30), enter kernel AND error
-     
-This script has been developed under Asuswrt-Merlin 3006.102.6 firmeware and tested on the following routers:
-- RT-BE96U
-- RT-AX88U Pro
-- GT-AX6000
+   - Filter for a tag, combined with a simple logical (term AND term)
+     Example - find all kernel: tags with an ethernet port down, enter kernel: eth AND Down
+
+This script supports Asuswrt-Merlin firmware 3004.388.* and 3006.102.* and associated routers.
 
 *This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
 Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*  
@@ -35,12 +32,12 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 
 
 ## Install:
-*Requires Asuswrt-Merlin and JFFS enabled
+*Requires Asuswrt-Merlin and JFFS enabled*
 
 SSH to the router and enter:
 
 ```Shell
-/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/master/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
+/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/beta/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
 ```
 
 ## Configuration:
@@ -76,12 +73,12 @@ Example custimized logFilter.json file, to exclude all wireless events ("wlceven
 		}
 
 **TIPS**
-ALL System log records, generally start with a script function name. Examples;
+ALL System log records, generally start with a date and a tag. Examples;
 - The majority of ADDON script contributors prefix their log records with the name of their script (e.g., Diversion, Skynet, Scribe, ...)
 - Other than that, scan log records for unique strings from a given record to inlude / exclude, such as
-  - wireless events (leaving or joining) = wlcevented
+  - wireless events (wlcevented)
   - ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
-  - specific addon scripts (e.g., log records starting with modsyslogui)
+  - specific tags /addon script names (e.g., log records starting with modsyslogui)
 	 
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
@@ -101,8 +98,40 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 1. Show all log records (default option) - nothing need be entered in the dialog box under the three options. All system log records are displayed, minus those log records matching one of the strings in the logFilter.json file
 2. Include only - enter a string or series of strings separated by a comma, with no spaces, to only show log records matching the string(s)
 3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
+4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT and term any string
+5.  Presets - a drop down list of previously saved filter actions (Inlcude, Exclude, Logical) and filter text, with the option to select ONE as the default to automatically load and run on System Log page load
 
-<img width="767" height="732" alt="image" src="https://github.com/user-attachments/assets/488fb885-fb5b-406d-9b72-bc066f459d66" />
+<img width="777" height="772" alt="image" src="https://github.com/user-attachments/assets/64f8cec2-ab94-48ed-b3b9-1a6b1c767722" />
+
 
 ## Support
 See [SmallNetBuilder Forum](https://www.snbforums.com/threads/modsyslogui-v1-0-0-released-add-on-providing-system-log-page-ui-filtering-capabilities.96496/) for more information & discussion
+
+## Debuging
+In the event script or UI filtering options do not work, collect and provide the following information in the ModSyslogUI thread of snbforums:
+- screenshot of error either on the UI or script from SSH session
+- if the modsyslogui shell script is generating an error, enable the DEBUG option to capture the error, then attached the MODSYSLOGUI_DEBUB.TXT to your post in the ModSyslogUI thread of snbforums
+- if the UI filtering is not working as expected, open the browser's DEV TOOLS (you may need to enable that first) and capture a screenshot of any CONSOLE errors, then post them in the ModSyslogUI thread of snbforums
+- in certain instances, I may ask for a copy of the /jffs/addons/modsyslogui/Main_LogStatus_Content.asp file (all the filtering magic happens here). In that event, run the following command and attache the log.txt to ModSyslogUI thread explaining the issue
+
+```Shell
+cat /jffs/addons/modsyslogui/Main_LogStatus_Content.asp > log.txt
+```
+
+## License
+
+Copyright (c) 2026 kstamand
+
+This project is licensed under the MIT License.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, provided that the above copyright notice and this
+permission notice are included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+

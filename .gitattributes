@@ -1,0 +1,14 @@
+//++ Start .gitattributes
+# Set default behavior to handle all files as text and force LF
+* text eol=lf
+
+# Explicitly ensure shell scripts and javascript are always LF
+*.sh text eol=lf
+*.js text eol=lf
+*.xml text eol=lf
+*.css text eol=lf
+
+# Keep binary files as-is
+*.png binary
+*.jpg binary
+//++ End .gitattributes
