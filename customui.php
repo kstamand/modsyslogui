@@ -1,4 +1,4 @@
-<!-- //++ Start Custom Asuswrt UI xml code -->
+<!-- //++ Start Custom Asuswrt UI log filter code -->
 <fieldset id="filter_optons">
     <p style="color: cyan"> <em> No selection is necessary. Default is to show all log records + exlcude content matching logFilter.json content.</em></p>
     <legend>Log Filtering Options</legend>
@@ -17,4 +17,4 @@
         <input type="submit" value="Submit">
     </form>
 </fieldset>
-<!-- //++ End Custom Asuswrt UI xml code --->
+<!-- //++ End Custom Asuswrt UI log filter code --->
