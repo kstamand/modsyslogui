@@ -261,7 +261,7 @@ Download_File() {
     # Parameter options: $1 = file name to download, $2 = full path + filename to download to
     # Download file from Github once to a temp location. If the same as the destination file, don't replace.
     # Otherwise move it from the temp location to the destination.
-    if curl -fsL --retry 3 --connect-timeout 3 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
+    if curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
         if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
             mv -f "/tmp/${1}" "${2}"
             Green "   - Installing $(basename "${1}")"
@@ -270,7 +270,7 @@ Download_File() {
             rm -f "/tmp/${1}" 2>/dev/null
         fi
     else
-        Red "   [ERROR] Install $(basename "${1}") failed"
+        Red "   [ERROR] Download of $(basename "${1}") failed. Install aborted, check for Internet performance or DNS issues"
         exit 5
     fi
 } # end of Download_File()
