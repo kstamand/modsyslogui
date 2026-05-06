@@ -828,7 +828,7 @@ if [ ! -f "$CURRENT_FLOW_FILE" ]; then
     # remove legacy (pre v1.2.0) files
     rm "${SCRIPT_NAME_DIR}/autostart_modsyslogui"
     rm "${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
-    sed -i 's/autostart_modsyslogui/autostartup/' /jffs/addons/test/services-start
+    sed -i 's/autostart_modsyslogui/autostartup/' /jffs/scripts/services-start
 
     rm -f "$LAST_FLOW_FILE" 2>/dev/null    #remove that last flow version file
     touch "$CURRENT_FLOW_FILE"
