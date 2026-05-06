@@ -1,6 +1,6 @@
 v1.2.0 (15-May-2026)
   - Added: Script - amtmupdate functionality (includes allowing script to run unattended)
-  - Added: Script - router bootup function (autostart), to accomodate changes custom asp location
+  - Added: Script - router bootup function (autostart), to accomodate changes to custom asp location
   - Fixed: Script - changed location of custom asp file, from modsyslogui directiory to /tmp (firmware updates)
   - Changed: services-start processing - replaced autostart_modsyslog script call, with modsyslogui autostart function
 
