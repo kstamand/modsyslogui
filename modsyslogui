@@ -423,7 +423,7 @@ Mod_Syslog_Asp() {
                     umount "${SYSLOGPAGE_MP}" 2>/dev/null || break
                 done
             fi
-            rm "$CUSTOM_SYSLOG_ASP_FILE"
+            rm "$CUSTOM_SYSLOG_ASP_FILE" 2>/dev/null
         ;;
     esac
 } # end of Mod_Syslog_Asp()
@@ -619,7 +619,7 @@ Install() {
     ##-------------------------------------##
     ## v1.1.0 add symlink for presets.conf ##
     ##-------------------------------------##
-    if [ ! -f ${WWW_PRESET_JSON} ]; then
+    if [ ! -L ${WWW_PRESET_JSON} ]; then
 		mkdir ${WWW_PRESET_DIR}  # first, need to create directory for symlink to live in
     	ln -sf ${PRESET_CONF} ${WWW_PRESET_JSON}
 	fi
