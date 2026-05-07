@@ -726,6 +726,10 @@ Update() {
 	Mod_Syslog_Asp uninstall   # Disable - Remove filtering mod from System Log UI
     Download_Script_Files      # Download all associated files
     Mod_Syslog_Asp install     # Re-Enable - Add filtering mod back to System Lot UI
+
+    if $AMTMUPDATE_RUN_FLAG; then 
+        exec "$0" postamtmupdate    # rexecute the script, to run the logic flow check then exist immediately and return cleanly to amtm
+    fi
     
     # Output completion message
     log_msg "Green" "Completed installing script updates"
@@ -848,6 +852,7 @@ case "${1}" in
     'enable') Enable_Filter ;;
     'uninstall') Uninstall ;;
     'amtmupdate') shift; Update_FromAMTM "$@"; exit "$?";; #v1.2.0 - amtmupdate functionality
+	'postamtmupdate') exit 0 ;; #v1.2.0 - amtmupdate functionality, return immediatley to amtm after having run logic flow check
     'autostartup') Auto_Startup ;; #v1.2.0 - changed router startup process, due to change of asp location to /tmp
     *) log_msg "Red" "${1} is an unknown argument"; exit 1 ;;
 esac
