@@ -46,7 +46,7 @@ readonly CUSTOM_FILTER_FILE="${SCRIPT_NAME_DIR}/customfilter.js"
 readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
-readonly lOG_TAG="$SCRIPT_NAME"
+readonly LOG_TAG="$SCRIPT_NAME"
 ##---------------------------------------------------##
 ## v1.1.0 added debugging toggle and logging to file ##
 ##---------------------------------------------------##
