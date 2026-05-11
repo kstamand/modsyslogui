@@ -180,8 +180,8 @@ Main_Menu() {
     else 
         log_msg "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
     fi
-    log_msg "Cyan" "   (z) Uninstall            completely remove script"
-    log_msg "Cyan" "   (e) Exit                 exit"
+    log_msg "Cyan" "  (z) Uninstall             completely remove script"
+    log_msg "Cyan" "  (e) Exit                  exit"
     
     printf "\nMake a selection: " >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
     read -r input
