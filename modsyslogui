@@ -86,7 +86,7 @@ esac
 ##---------------------------------##
 ## v1.2.0 amtmupdate functionality ##
 ##---------------------------------##
-ENABLE_AMTMUPDATE=true      # true = this script support amtmupdate
+AMTMUPDATE_STATE_FILE="${SCRIPT_NAME_DIR}/amtmupdate.state"
 AMTMUPDATE_RUN_FLAG=false   # set to true only if update function initiated by amtmupdate
 CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be created
 LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v0" # set current logic flow version file to be deleted
@@ -166,17 +166,22 @@ Main_Menu() {
     Scriptinfo
     
     # These functions now use >&3 internally
-    log_msg "Cyan" "  (1) About         explain functionality"
-    log_msg "Cyan" "  (2) Help          information on how to use this script"
-    log_msg "Cyan" "  (3) Install       install all script files"
-    log_msg "Cyan" "  (4) Update        check for script updates"
-    log_msg "Cyan" "  (5) Edit          edit logFilter.json"
-    log_msg "Cyan" "  (6) Disable       disable dynamic UI filtering"
-    log_msg "Cyan" "  (7) Enable        enable dynamic UI filtering"
-    log_msg "Cyan" "  (8) Enable Debug  enable logging to file"
-    log_msg "Cyan" "  (9) Disable debug disable logging"
-    log_msg "Cyan" "  (10) Uninstall    completely remove script"
-    log_msg "Cyan" "  (e) Exit          exit"
+    log_msg "Cyan" "  (1)  About                explain functionality"
+    log_msg "Cyan" "  (2)  Help                 information on how to use this script"
+    log_msg "Cyan" "  (3)  Install              install all script files"
+    log_msg "Cyan" "  (4)  Update               check for script updates"
+    log_msg "Cyan" "  (5)  Edit                 edit logFilter.json"
+    log_msg "Cyan" "  (6)  Disable              disable dynamic UI filtering"
+    log_msg "Cyan" "  (7)  Enable               enable dynamic UI filtering"
+    log_msg "Cyan" "  (8)  Enable Debug         enable logging to file"
+    log_msg "Cyan" "  (9)  Disable debug        disable logging"
+    if [ $(Get_Amtmupdate_State) = true ]; then
+        log_msg "Cyan" "  (da) Disable Amtmupdate   disable amtmupdate auto updates"
+    else 
+        log_msg "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
+    fi
+    log_msg "Cyan" "   (z) Uninstall            completely remove script"
+    log_msg "Cyan" "   (e) Exit                 exit"
     
     printf "\nMake a selection: " >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
     read -r input
@@ -185,13 +190,14 @@ Main_Menu() {
         '1') clear >&3; About ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
         '2') clear >&3; Show_Help ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
         '3') Install ;;
-        '4') Update; exec "${SCRIPT_INSTALL_PATH}" ;; # v1.1.0 - re-execute script to show updated ver
+        '4') Update; exec "$0" ;; # v1.1.0 - re-execute script to show updated ver
         '5') Edit ;;
         '6') Disable_Filter ;;
         '7') Enable_Filter ;;
         '8') Enable_Debug ;; # v1.1.0 - renamed after adding logging to file + disable_debut
         '9') Disable_Debug ;; # v1.1.0 - added toggle
-        '10') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
+        'da'|'ea'|'DA'|'EA') Toggle_Amtmupdate ;; # v1.2.0 - disable or enable amtmupdate auto updates
+        'z') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
         'e'|'E'|'exit') return ;;
         *) printf "\n" >&3; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
     esac
@@ -741,7 +747,8 @@ Update() {
 ##---------------------------------##
 Update_FromAMTM()
 {
-    if ! "$ENABLE_AMTMUPDATE"
+    amtmupdate_state=$(Get_Amtmupdate_State)
+    if ! "$amtmupdate_state"        #if not true, then amtmupdate state has been disabled
     then
         log_msg "Yellow" "Automatic script updates via AMTM are currently disabled."
         return 1
@@ -788,6 +795,29 @@ Disable_Filter () {
 Enable_Filter () {
     Mod_Syslog_Asp install
 } # end of Add_Filter()
+
+##-------------------------------------------------------------------------------------------##
+# v1.2.0 added amtmupdate state management functionality >> true = enabled, false = disabled ##
+##-------------------------------------------------------------------------------------------##
+Get_Amtmupdate_State() {
+    # get the saved state of amtmupdate (true = enabled, false = disabled) or set state to true if not found
+    head -n 1 "$AMTMUPDATE_STATE_FILE" 2>/dev/null || echo "true"
+} # end of Get_Amtmupdate_State()
+
+##
+
+##-------------------------------------------------------##
+# v1.2.0 added amtmupdate disable / enable functionality ##
+##-------------------------------------------------------##
+Toggle_Amtmupdate() {
+    if [ $(Get_Amtmupdate_State) = true ]; then
+        echo "false" > "$AMTMUPDATE_STATE_FILE"
+        log_msg "Green" "Amtmupdate automatic updates disabled"
+    else
+        echo "true" > "$AMTMUPDATE_STATE_FILE"
+        log_msg "Green" "Amtmupdate automatic updates enabled"
+    fi
+} # end of Toggle_Amtmupdate()
 
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
 ## Script Mainline
@@ -836,6 +866,13 @@ if [ ! -f "$CURRENT_FLOW_FILE" ]; then
 
     rm -f "$LAST_FLOW_FILE" 2>/dev/null    #remove that last flow version file
     touch "$CURRENT_FLOW_FILE"
+fi
+
+##-------------------------------------------------------------------------------------------##
+# v1.2.0 added amtmupdate state management functionality >> true = enabled, false = disabled ##
+##-------------------------------------------------------------------------------------------##
+if [ ! -f "$AMTMUPDATE_STATE_FILE" ] || ! grep -qwE "true|false" "$AMTMUPDATE_STATE_FILE"; then
+  echo "true" > "$AMTMUPDATE_STATE_FILE"
 fi
 
 # Make sure the version in custom_settings.txt matches the version of this script
