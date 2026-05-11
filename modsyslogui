@@ -13,7 +13,7 @@
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2026-02-28
+# Date:         2026-05-11
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
@@ -27,24 +27,26 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.1.0"
+readonly SCRIPT_VERSION="v1.2.0"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
 readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
 readonly ADDON_DIR="/jffs/addons"
 readonly SCRIPT_NAME_DIR="${ADDON_DIR}/${SCRIPT_NAME}"
 readonly SCRIPT_INSTALL_PATH="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}"
-readonly SCRIPT_AUTOSTART_PATH="${SCRIPT_NAME_DIR}/autostart_${SCRIPT_NAME}"
+readonly SCRIPT_AUTOSTART_CMD="${SCRIPT_INSTALL_PATH} autostartup"
 readonly SETTINGS_FILE="/jffs/addons/custom_settings.txt"
+readonly TMP_DIR="/tmp"
 readonly DEFAULT_LOGFILTER_PATH="/www/ajax/logFilter.json"
 readonly CUSTOM_LOGFILTER_PATH="${SCRIPT_NAME_DIR}/logFilter.json"
 readonly DEFAULT_SYSLOG_ASP_FILE="/www/Main_LogStatus_Content.asp"
-readonly CUSTOM_SYSLOG_ASP_FILE="${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
+readonly CUSTOM_SYSLOG_ASP_FILE="${TMP_DIR}/Main_LogStatus_Content.asp"
 readonly CUSTOM_FUNCTION_FILE="${SCRIPT_NAME_DIR}/customfunction.js"
 readonly CUSTOM_FILTER_FILE="${SCRIPT_NAME_DIR}/customfilter.js"
 readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
+readonly LOG_TAG="$SCRIPT_NAME"
 ##---------------------------------------------------##
 ## v1.1.0 added debugging toggle and logging to file ##
 ##---------------------------------------------------##
@@ -80,12 +82,15 @@ case "$fwInstalledBranchVer" in
     "3006.102") SUPPORTED_FIRMWARE_VERSION=true ;;
             *) SUPPORTED_FIRMWARE_VERSION=false
 esac
-### End of Script Variables
 
-Logmsg() {
-    [ "$#" = "0" ] && return
-    logger -t "${SCRIPT_NAME_DISPLAY}" "$*"
-}
+##---------------------------------##
+## v1.2.0 amtmupdate functionality ##
+##---------------------------------##
+AMTMUPDATE_STATE_FILE="${SCRIPT_NAME_DIR}/amtmupdate.state"
+AMTMUPDATE_RUN_FLAG=false   # set to true only if update function initiated by amtmupdate
+CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be created
+LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v0" # set current logic flow version file to be deleted
+### End of Script Variables
 
 ##------------------------------------------------------------------------------------------------##
 # v1.1.0 All UI output is explicitly sent to >&3 (the screen) for debug function to work properly ##
@@ -96,16 +101,28 @@ Yellow() { printf -- '\033[1;33m%s\033[0m\n' "${1}" >&3; }
 Magenta() { printf -- '\033[1;35m%s\033[0m\n' "${1}" >&3; }
 Cyan() { printf -- '\033[1;36m%s\033[0m\n' "${1}" >&3; }
 
+log_msg() {
+    # $1 = display color; $2 = msg
+    display_color="$1"
+    msg="$2"
+    if [ "$mode" = "interactive" ]; then
+        if ! $AMTMUPDATE_RUN_FLAG; then   # skip displaying progress info if called from amtm (amtmupdate)
+            $display_color "$msg"
+        fi
+    else
+        logger -t "$LOG_TAG" "$msg"
+    fi
+}
+
 ##----------------------------------------------------------##
 ## v1.1.0 replaced original debug option in order to enable ##
 ## capturing log output to a log file                       ##
 ##----------------------------------------------------------##
 Enable_Debug() {
     [ "$DEBUG_ENABLED" = "1" ] && {
-        Yellow "Debug already enabled"
+        log_msg "Yellow" "Debug already enabled"
         return
     }
-
 
     mkdir -p "$(dirname "$DEBUG_LOG")"
     
@@ -115,7 +132,7 @@ Enable_Debug() {
     set -x
     DEBUG_ENABLED=1
     printf "\n===== Debug enabled: %s =====\n" "$(date)" >>"$DEBUG_LOG"
-    Yellow "Debug enabled and output being captured in ${DEBUG_LOG}"
+    log_msg "Yellow" "Debug enabled and output being captured in ${DEBUG_LOG}"
 } # end Enable_Debug()
 
 ##--------------------------------##
@@ -129,7 +146,7 @@ Disable_Debug() {
     exec 1>${CONSOLE_FD} 2>${CONSOLE_FD}
 
     DEBUG_ENABLED=0
-    Yellow "Debug disabled - see ${DEBUG_LOG}"
+    log_msg "Yellow" "Debug disabled - see ${DEBUG_LOG}"
 } # end Disable_Debug()
 
 ##-------------------------------------------------------------------------------------------------##
@@ -149,17 +166,22 @@ Main_Menu() {
     Scriptinfo
     
     # These functions now use >&3 internally
-    Cyan "  (1) About         explain functionality"
-    Cyan "  (2) Help          information on how to use this script"
-    Cyan "  (3) Install       install all script files"
-    Cyan "  (4) Update        check for script updates"
-    Cyan "  (5) Edit          edit logFilter.json"
-    Cyan "  (6) Disable       disable dynamic UI filtering"
-    Cyan "  (7) Enable        enable dynamic UI filtering"
-    Cyan "  (8) Enable Debug  enable logging to file"
-    Cyan "  (9) Disable debug disable logging"
-    Cyan "  (10) Uninstall    completely remove script"
-    Cyan "  (e) Exit          exit"
+    log_msg "Cyan" "  (1)  About                explain functionality"
+    log_msg "Cyan" "  (2)  Help                 information on how to use this script"
+    log_msg "Cyan" "  (3)  Install              install all script files"
+    log_msg "Cyan" "  (4)  Update               check for script updates"
+    log_msg "Cyan" "  (5)  Edit                 edit logFilter.json"
+    log_msg "Cyan" "  (6)  Disable              disable dynamic UI filtering"
+    log_msg "Cyan" "  (7)  Enable               enable dynamic UI filtering"
+    log_msg "Cyan" "  (8)  Enable Debug         enable logging to file"
+    log_msg "Cyan" "  (9)  Disable debug        disable logging"
+    if [ $(Get_Amtmupdate_State) = true ]; then
+        log_msg "Cyan" "  (da) Disable Amtmupdate   disable amtmupdate auto updates"
+    else 
+        log_msg "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
+    fi
+    log_msg "Cyan" "  (z) Uninstall             completely remove script"
+    log_msg "Cyan" "  (e) Exit                  exit"
     
     printf "\nMake a selection: " >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
     read -r input
@@ -168,15 +190,16 @@ Main_Menu() {
         '1') clear >&3; About ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
         '2') clear >&3; Show_Help ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
         '3') Install ;;
-        '4') Update; exec "${SCRIPT_INSTALL_PATH}" ;; # v1.1.0 - re-execute script to show updated ver
+        '4') Update; exec "$0" ;; # v1.1.0 - re-execute script to show updated ver
         '5') Edit ;;
         '6') Disable_Filter ;;
         '7') Enable_Filter ;;
         '8') Enable_Debug ;; # v1.1.0 - renamed after adding logging to file + disable_debut
         '9') Disable_Debug ;; # v1.1.0 - added toggle
-        '10') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
+        'da'|'ea'|'DA'|'EA') Toggle_Amtmupdate ;; # v1.2.0 - disable or enable amtmupdate auto updates
+        'z') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
         'e'|'E'|'exit') return ;;
-        *) printf "\n" >&3; Red "[ERROR] ${input} is not a valid option!" ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
+        *) printf "\n" >&3; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
     esac
     Press_Enter
     Main_Menu
@@ -241,18 +264,18 @@ echo -e "${RESET}"
 Scriptinfo() {
     # Version header used in interactive sessions
     printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
-    Green "${SCRIPT_NAME_DISPLAY} ${SCRIPT_VERSION}"
+    log_msg "Green" "${SCRIPT_NAME_DISPLAY} ${SCRIPT_VERSION}"
     printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
 } # end of Scriptinfo ()
 
 Check_Firmware() {
-    Green "   - Checking firmware support"
+    log_msg "Green""   - Checking firmware support"
     if ! nvram get rc_support | grep -q am_addons; then
-        Red "${SCRIPT_NAME_DISPLAY} requires ASUSWRT-Merlin Addon API support, check your installed Merlin version. Installation aborted."
+        log_msg "Red" "${SCRIPT_NAME_DISPLAY} requires ASUSWRT-Merlin Addon API support, check your installed Merlin version. Installation aborted."
         return 1
     fi
     if [ "$(nvram get jffs2_scripts)" != "1" ]; then
-        Red "   - Enable JFFS custom scripts and configs is not enabled. Please enable it in the GUI. Aborting installation."
+       log_msg "Red" "   - Enable JFFS custom scripts and configs is not enabled. Please enable it in the GUI. Aborting installation."
         return 1
     fi
 } # end of Check_Firmware()
@@ -264,13 +287,13 @@ Download_File() {
     if curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
         if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
             mv -f "/tmp/${1}" "${2}"
-            Green "   - Installing $(basename "${1}")"
+            log_msg "Green" "   - Installing $(basename "${1}")"
         else
-            Yellow "  File $(basename "${2}") is already up-to-date"
+            log_msg "Yellow" "  File $(basename "${2}") is already up-to-date"
             rm -f "/tmp/${1}" 2>/dev/null
         fi
     else
-        Red "   [ERROR] Download of $(basename "${1}") failed. Install aborted, check for Internet performance or DNS issues"
+        log_msg "Red" "   [ERROR] Download of $(basename "${1}") failed. Install aborted, check for Internet performance or DNS issues"
         exit 5
     fi
 } # end of Download_File()
@@ -280,10 +303,6 @@ Download_Script_Files() {
     # download ModSyslogUI script
     Download_File "$(basename "${SCRIPT_INSTALL_PATH}")" "${SCRIPT_INSTALL_PATH}" #ModSyslogUI script
     chmod 755 ${SCRIPT_INSTALL_PATH} # make script executable
-
-    # download ModSyslogUI services-start script
-    Download_File "$(basename "${SCRIPT_AUTOSTART_PATH}")" "${SCRIPT_AUTOSTART_PATH}" #auto startup script
-    chmod 755 ${SCRIPT_AUTOSTART_PATH} # make script executable
 
     # download custom asp function file
     Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #UI custom function code
@@ -305,33 +324,56 @@ Mod_Startup() {
     # Parameters: $1 - install or uninstall
     case $1 in
         'install')
-            Green "   - Adding ${SCRIPT_NAME} services-start line"
+            log_msg "Green" "   - Adding ${SCRIPT_NAME} services-start line"
             # check if a services-start file exists and process as follows
 			if [ -f /jffs/scripts/services-start ]; then
                 # delete any existing modsyslogui lines just in case
                 sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
-                echo "${SCRIPT_AUTOSTART_PATH} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
+                echo "${SCRIPT_AUTOSTART_CMD} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
 			# a service-start file did not exist, so create one
             else
 				echo "#!/bin/sh" > /jffs/scripts/services-start
                 echo " " >> /jffs/scripts/services-start
-                echo "${SCRIPT_AUTOSTART_PATH} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
+                echo "${SCRIPT_AUTOSTART_CMD} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
 				chmod 0755 /jffs/scripts/services-start
 			fi
         ;;
         'uninstall')
-			Green "   - Removing ${SCRIPT_NAME} from services-start"
+			log_msg "Green" "   - Removing ${SCRIPT_NAME} from services-start"
             # check if services-start line exists and if so, remove any HideUIMenus lines found
             sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
         ;;
     esac
 } # end of Mod_Start()
 
+Auto_Startup() {
+    # Paraemeters: None
+    # Copy default System Log ASP file to scripts addon directory
+    log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
+    cp -f "${DEFAULT_SYSLOG_ASP_FILE}" "$TMP_DIR/" 2>/dev/null
+
+    # modify system log web page to add filtering capabilities
+    Mod_Syslog_Asp install
+
+    # Copy default logFilter.json file
+    if [ ! -f "$CUSTOM_LOGFILTER_PATH" ]; then 
+        log_msg "Green" "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
+        cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
+    fi
+
+    Mount_Control_Logfilter install
+
+    # Add symlink for presets
+    mkdir /www/user/modsyslogui  # first, need to create directory for symlink to live in
+    ln -sf /jffs/addons/modsyslogui/presets.conf /www/user/modsyslogui/presets.json
+
+} # end of Auto_Startup()
+
 Mod_ServiceEvent() {
     # Parameters: $1 - install or uninstall
     case $1 in
         'install')
-            Green "   - Adding ${SCRIPT_NAME} service-event line"
+            log_msg "Green" "   - Adding ${SCRIPT_NAME} service-event line"
             # check if a service-event file exists and process as follows
 			if [ -f /jffs/scripts/service-event ]; then
                 # delete any existing modsyslogui lines just in case
@@ -346,7 +388,7 @@ Mod_ServiceEvent() {
 			fi
         ;;
         'uninstall')
-			Green "   - Removing ${SCRIPT_NAME} from service-event"
+			log_msg "Green" "   - Removing ${SCRIPT_NAME} from service-event"
             # check if service-event line exists and if so, remove any lines found
             sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
         ;;
@@ -357,8 +399,12 @@ Mod_Syslog_Asp() {
     # Parameters: $1 install or uninstall
     case $1 in
         install)
-        if [ -f "${CUSTOM_SYSLOG_ASP_FILE}" ]; then
-            Green "   - Adding filtering capabilities to System Log UI page"
+            # Make sure asp files exists in /tmp
+            if [ ! -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
+                log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
+                cp "${DEFAULT_SYSLOG_ASP_FILE}" "$TMP_DIR/"
+            fi
+            log_msg "Green" "   - Adding filtering capabilities to System Log UI page"
             # check and remove any existing custom code added by this addon
             sed -i '/\/\/++ Start custom function/,/\/\/++ End custom function/d' ${CUSTOM_SYSLOG_ASP_FILE}
             sed -i '/\/\/++ Start Custom UI/,/\/\/++ End Custom UI/d' ${CUSTOM_SYSLOG_ASP_FILE}
@@ -372,13 +418,9 @@ Mod_Syslog_Asp() {
             sed -i "/onclick=\"applySettings();\"/r ${CUSTOM_UI_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}" #v1.0.1 changed insertion point
             # mount the customized web page with filtering capabilities added
             mount -o bind ${CUSTOM_SYSLOG_ASP_FILE} ${DEFAULT_SYSLOG_ASP_FILE}
-        else
-            Red "[ERROR] ${CUSTOM_SYSLOG_ASP_FILE} is missing"
-            exit 5
-        fi
         ;;
         uninstall)
-            Green "   - Removing filtering capabilities from System Log UI page"
+            log_msg "Green" "   - Removing filtering capabilities from System Log UI page"
             ##----------------------------------------------##
             ## v1.0.2 unmount customized System Log UI page ##
             ##----------------------------------------------##
@@ -387,9 +429,7 @@ Mod_Syslog_Asp() {
                     umount "${SYSLOGPAGE_MP}" 2>/dev/null || break
                 done
             fi
-
-            # copy back the default Asuswrt System Log web page
-            cp "${DEFAULT_SYSLOG_ASP_FILE}" "${SCRIPT_NAME_DIR}/"
+            rm "$CUSTOM_SYSLOG_ASP_FILE" 2>/dev/null
         ;;
     esac
 } # end of Mod_Syslog_Asp()
@@ -401,11 +441,11 @@ Mount_Control_Logfilter () {
     # Parameters: $1 install or uninstall
     case $1 in
         install)
-            Green "   - Mounting logFilter.json"
+            log_msg "Green" "   - Mounting logFilter.json"
             mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
         ;;
         uninstall)
-            Green "   - Removing customized logFilter.json"
+            log_msg "Green" "   - Removing customized logFilter.json"
             if grep -q " ${LOGFILTER_MP} " /proc/mounts; then
                 while grep -q " ${LOGFILTER_MP} " /proc/mounts; do # remove multiples, just in case more than one mounted
                     umount "${LOGFILTER_MP}" 2>/dev/null || break
@@ -424,11 +464,11 @@ Setup_Aliases() {
             local cmdline
             if [ -d /opt/bin ]; then
                 # Entware is installed, so setup link to /opt/bin
-                Green "   - Adding ${SCRIPT_NAME} command line alias"
+                log_msg "Green" "   - Adding ${SCRIPT_NAME} command line alias"
                 ln -sf "${SCRIPT_INSTALL_PATH}" "/opt/bin/${SCRIPT_NAME}"
             else
                 # Setup shell alias
-                Green "   -  Adding ${SCRIPT_NAME} alias in profile.add"
+                log_msg "Green" "   -  Adding ${SCRIPT_NAME} alias in profile.add"
                 sed -i "/alias ${SCRIPT_NAME}/d" /jffs/configs/profile.add 2>/dev/null
                 cmdline="alias ${SCRIPT_NAME}=\"sh ${SCRIPT_INSTALL_PATH}\" # ${SCRIPT_NAME} Addition"
                 echo "${cmdline}" >> /jffs/configs/profile.add
@@ -438,14 +478,14 @@ Setup_Aliases() {
             # remove alias from profile.add. Brute force, meaning not checking to see if exists first, just assume and delete
             if [ -L /opt/bin/${SCRIPT_NAME} ]; then
                 # Entware is installed, so setup link to /opt/bin
-                Green "   - Deleting ${SCRIPT_NAME} command line alias"
+                log_msg "Green" "   - Deleting ${SCRIPT_NAME} command line alias"
                 rm "/opt/bin/${SCRIPT_NAME}"
             else
                 # Remove alias from profile.add
                 if [ -f /jffs/configs/profile.add ]; then
                     STARTUPLINECOUNT=$(grep -c '# '"${SCRIPT_NAME}" /jffs/configs/profile.add)
                     if [ "${STARTUPLINECOUNT}" -gt 0 ]; then
-                        Green "   -  Deleting ${SCRIPT_NAME} alias in profile.add"
+                        log_msg "Green" "   -  Deleting ${SCRIPT_NAME} alias in profile.add"
                         sed -i -e '/# '"${SCRIPT_NAME}"'/d' /jffs/configs/profile.add
                     fi
                 fi
@@ -459,7 +499,7 @@ Custom_Settings(){
     # Add / delete a name space in the Asuswrt third party addons custome_settings.txt file
     case $1 in
         install)
-            Green "   - Creating ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
+            log_msg "Green" "   - Creating ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
             # check if any previous name space entries exist and remove them
 			if [ -f ${SETTINGS_FILE} ]; then
 				STARTUPLINECOUNT=$(grep -c "${SCRIPT_NAME_DISPLAY}" ${SETTINGS_FILE})
@@ -476,7 +516,7 @@ Custom_Settings(){
 			fi
         ;; 
         uninstall)
-            Green "   - Deleting ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
+            log_msg "Green" "   - Deleting ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
             # check if any previous name space entries exist and remove them
 			if [ -f ${SETTINGS_FILE} ]; then
 				STARTUPLINECOUNT=$(grep -c "${SCRIPT_NAME_DISPLAY}" ${SETTINGS_FILE})
@@ -496,10 +536,10 @@ Install() {
     clear
     Scriptinfo
 
-    Green "Installing ${SCRIPT_NAME_DISPLAY}"
+    log_msg "Green" "Installing ${SCRIPT_NAME_DISPLAY}"
     # shellcheck disable=SC2078
     if [ ! Check_Firmware ]; then
-        Red "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
+        log_msg "Red" "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
         Press_Enter
         rm -f "${0}" 2>/dev/nullf
         exit 5
@@ -507,19 +547,19 @@ Install() {
 
     # Create the directory for this scripts addon files
     if [ ! -d "${SCRIPT_NAME_DIR}" ]; then
-        Green "   - Creating ${SCRIPT_NAME} ADDON directory"
+        log_msg "Green" "   - Creating ${SCRIPT_NAME} ADDON directory"
         mkdir -p "${SCRIPT_NAME_DIR}"
     else
-        Yellow "   ${SCRIPT_NAME} is already installed or remnants of a previous install exist."
-        Yellow "   >>> Proceeding will only replace existing files if there is a newer version, no harm otherwise."
+        log_msg "Yellow" "   ${SCRIPT_NAME} is already installed or remnants of a previous install exist."
+        log_msg "Yellow" "   >>> Proceeding will only replace existing files if there is a newer version, no harm otherwise."
         printf "\n"
-        Red "   Are you certain you want to proceed? [y=Yes n=No]:"
+        log_msg "Red" "   Are you certain you want to proceed? [y=Yes n=No]:"
         printf "\n"
 
         read -r yn
         printf "\n"
         if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
-            Cyan "   - No Changes have been made"
+            log_msg "Cyan" "   - No Changes have been made"
             return 0
         else 
             ##----------------------------------------------------------------------##
@@ -539,13 +579,13 @@ Install() {
     ##---------------------------------------------------------------------------------------------------------------##
     if [ -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
         # remove existing customize asp file if exists
-        Green "   - Deleting existing customized System Log page customizations"
+        log_msg "Green" "   - Deleting existing customized System Log page customizations"
         rm ${CUSTOM_SYSLOG_ASP_FILE} 
     fi
 
     # Copy default System Log ASP file to scripts addon directory
-    Green "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
-    cp "${DEFAULT_SYSLOG_ASP_FILE}" "${SCRIPT_NAME_DIR}/"
+    log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
+    cp "${DEFAULT_SYSLOG_ASP_FILE}" "$TMP_DIR/"
 
     # modify system log web page to add filtering capabilities
     Mod_Syslog_Asp install
@@ -557,7 +597,7 @@ Install() {
     if [ ! -f ${CUSTOM_LOGFILTER_PATH} ]; then
         # copy over the system's default logFilter.json file 
         #+ the defaults are fine, but copying over in case user wants to customize
-        Green "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
+        log_msg "Green" "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
         cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
     fi
     ##------------------------------------------------------------------------##
@@ -585,7 +625,7 @@ Install() {
     ##-------------------------------------##
     ## v1.1.0 add symlink for presets.conf ##
     ##-------------------------------------##
-    if [ ! -f ${WWW_PRESET_JSON} ]; then
+    if [ ! -L ${WWW_PRESET_JSON} ]; then
 		mkdir ${WWW_PRESET_DIR}  # first, need to create directory for symlink to live in
     	ln -sf ${PRESET_CONF} ${WWW_PRESET_JSON}
 	fi
@@ -596,7 +636,7 @@ Install() {
     chmod +x ${PRESET_MANAGER}
 
     # Install complete messages
-    Green "${SCRIPT_NAME_DISPLAY} installation complete!"
+    log_msg "Green" "${SCRIPT_NAME_DISPLAY} installation complete!"
     ##--------------------------------------------------------------------------##
     ## v1.0.1 - added verbiage noting it is not necessary to edit the json file ##
     ##--------------------------------------------------------------------------##
@@ -604,7 +644,7 @@ Install() {
 } # end of Install()
 
 Uninstall() {
-    Green "Uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+    log_msg "Green" "Uninstalling the ${SCRIPT_DISPLAY_NAME} script"
 
     # Remove the addons startup line in services-start
     Mod_Startup uninstall
@@ -638,63 +678,89 @@ Uninstall() {
     rm -rf ${WWW_PRESET_DIR}
 
     # Remove the scripts addon directory
-    Green "   - Removing the scripts addon directory"
-	cd /tmp
+    log_msg "Green" "   - Removing the scripts addon directory"
+	cd "${TMP_DIR}"
     rm -rf ${SCRIPT_NAME_DIR}
 
     # output completion message
-    Green "Completed uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+    log_msg "Green" "Completed uninstalling the ${SCRIPT_DISPLAY_NAME} script"
 } # end of Uninstall()
 
-Update() {
+Update() {    
+    if [ ! "$1" = "amtmupdate" ]; then # if running via amtmupdate, skip version checking - already done
+        # Check for, and optionally apply updates.
+        # Parameter options: check (do not update), silent (update without prompting)
+        local updatestatus yn remotever
+        Scriptinfo
+        log_msg "Green" "Checking for updates"
+        # Update the webui status thorugh detect_update.js ajax call.
+        # Get the version of the script on Github
+        localver="$(grep "SCRIPT_VERSION=" ${SCRIPT_INSTALL_PATH} | grep -m1 -oE "${scriptVersRegExp}")"
+        remotever="$(curl -fsL --retry 4 --retry-delay 5 "${GIT_URL}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
+        # Compare local and remote versions to see how to proceed
+        if [ "${localver}" != "${remotever}" ]; then
+            # version upgrade
+            updatestatus="Update"
+        else
+            updatestatus="NoUpdate"
+        fi
 
-    # Check for, and optionally apply updates.
-    # Parameter options: check (do not update), silent (update without prompting)
-    local updatestatus yn remotever
-    Scriptinfo
-    Green "Checking for updates"
-    # Update the webui status thorugh detect_update.js ajax call.
-    # Get the version of the script on Github
-    localver="$(grep "SCRIPT_VERSION=" ${SCRIPT_INSTALL_PATH} | grep -m1 -oE "${scriptVersRegExp}")"
-    remotever="$(curl -fsL --retry 4 --retry-delay 5 "${GIT_URL}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
-    # Compare local and remote versions to see how to proceed
-    if [ "${localver}" != "${remotever}" ]; then
-        # version upgrade
-        updatestatus="Update"
-    else
-        updatestatus="NoUpdate"
-    fi
-
-    case "${updatestatus}" in
-    'NoUpdate')
-        Green "   - You have the latest version installed"
-        printf " Would you like to overwrite your existing installation anyway? [y=Yes n=No]: "
-        ;;
-    'Update')
-        # New Version Number
-        Green "   - ${SCRIPT_NAME_DISPLAY} ${updatestatus} is now available!"
-        printf " Would you like to update now? [y=Yes n=No]: "
-        ;;
-    *)
-        Red "   - Error occured checking version information"
-        Press_Enter
-        return
-        ;;
-    esac
-    read -r yn
-    printf "\n"
-    if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
-        Cyan "   - No Changes have been made"
-        return 0
+        case "${updatestatus}" in
+        'NoUpdate')
+            log_msg "Green" "   - You have the latest version installed"
+            printf " Would you like to overwrite your existing installation anyway? [y=Yes n=No]: "
+            ;;
+        'Update')
+            # New Version Number
+            log_msg "Green" "   - ${SCRIPT_NAME_DISPLAY} ${updatestatus} is now available!"
+            printf " Would you like to update now? [y=Yes n=No]: "
+            ;;
+        *)
+            log_msg "Red" "   - Error occured checking version information"
+            Press_Enter
+            return
+            ;;
+        esac
+        read -r yn
+        printf "\n"
+        if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
+            log_msg "Cyan" "   - No Changes have been made"
+            return 0
+        fi
     fi
 
 	Mod_Syslog_Asp uninstall   # Disable - Remove filtering mod from System Log UI
     Download_Script_Files      # Download all associated files
     Mod_Syslog_Asp install     # Re-Enable - Add filtering mod back to System Lot UI
+
+    if $AMTMUPDATE_RUN_FLAG; then 
+        exec "$0" postamtmupdate    # rexecute the script, to run the logic flow check then exist immediately and return cleanly to amtm
+    fi
     
     # Output completion message
-    Green "Completed installing script updates"
+    log_msg "Green" "Completed installing script updates"
+    return 0
 } # end of Update()
+
+##---------------------------------##
+## v1.2.0 amtmupdate functionality ##
+##---------------------------------##
+Update_FromAMTM()
+{
+    amtmupdate_state=$(Get_Amtmupdate_State)
+    if ! "$amtmupdate_state"        #if not true, then amtmupdate state has been disabled
+    then
+        log_msg "Yellow" "Automatic script updates via AMTM are currently disabled."
+        return 1
+    fi
+    if [ $# -gt 0 ] && [ "$1" = "check" ]
+    then return 0
+    fi
+    log_msg "Cyan" "$SCRIPT_NAME_DISPLAY Running amtmupdate"
+    AMTMUPDATE_RUN_FLAG=true     # set amtmupdate run flag to true, so we can minimize console output
+    Update amtmupdate
+    return "$?"
+} # end Update_FromAMTM()
 
 Edit () {
     local before_hash 
@@ -716,9 +782,9 @@ Edit () {
     # Check for any changes
     if [ ! "${before_hash}" = "${after_hash}" ]; then
         mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
-        Yellow "Your changes have been saved to ${CUSTOM_LOGFILTER_PATH} and applied to the System"
+        log_msg "Yellow" "Your changes have been saved to ${CUSTOM_LOGFILTER_PATH} and applied to the System"
     else
-        Yellow "No changes were made to the ${CUSTOM_LOGFILTER_PATH}"
+        log_msg "Yellow" "No changes were made to the ${CUSTOM_LOGFILTER_PATH}"
     fi
 } # end of Edit()
 
@@ -730,17 +796,32 @@ Enable_Filter () {
     Mod_Syslog_Asp install
 } # end of Add_Filter()
 
+##-------------------------------------------------------------------------------------------##
+# v1.2.0 added amtmupdate state management functionality >> true = enabled, false = disabled ##
+##-------------------------------------------------------------------------------------------##
+Get_Amtmupdate_State() {
+    # get the saved state of amtmupdate (true = enabled, false = disabled) or set state to true if not found
+    head -n 1 "$AMTMUPDATE_STATE_FILE" 2>/dev/null || echo "true"
+} # end of Get_Amtmupdate_State()
+
+##
+
+##-------------------------------------------------------##
+# v1.2.0 added amtmupdate disable / enable functionality ##
+##-------------------------------------------------------##
+Toggle_Amtmupdate() {
+    if [ $(Get_Amtmupdate_State) = true ]; then
+        echo "false" > "$AMTMUPDATE_STATE_FILE"
+        log_msg "Green" "Amtmupdate automatic updates disabled"
+    else
+        echo "true" > "$AMTMUPDATE_STATE_FILE"
+        log_msg "Green" "Amtmupdate automatic updates enabled"
+    fi
+} # end of Toggle_Amtmupdate()
+
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
 ## Script Mainline
 clear >&3 # v1.1.0 - added redirection (>3) to keep output on screen after adding debug to log functionality
-
-# check to make sure only one argument passed, exit otherwise
-if [ $# -gt 1 ]; then
-    Red "Too many arguments ($#) passed to this script!"
-    printf "\n"
-    Show_ArgsHelp
-    exit 1
-fi
 
 # Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
 if tty >/dev/null 2>&1; then
@@ -749,8 +830,14 @@ else
     mode="unattended"
 fi
 
-if [ ${mode} = "unattended" ]; then
-    Logmsg "[ERROR] this script does not support unattended mode operations"
+# check to make sure only one argument passed, exit otherwise
+if [ $# -gt 2 ]; then
+    log_msg "Red" "Too many arguments ($#) passed to this script!"
+    if [ $mode = "interactive"]; then
+        printf "\n"
+        Show_ArgsHelp
+    fi
+    exit 1
 fi
 
 ##-------------------------------------##
@@ -758,8 +845,34 @@ fi
 ##-------------------------------------##
 # Exit if not running a supported firmware version 
 if ! ${SUPPORTED_FIRMWARE_VERSION}; then
-    Red "Firmware version ${fwInstalledBranchVer} not suppoted - exiting script"
+    log_msg "Red" "Firmware version ${fwInstalledBranchVer} not suppoted - exiting script"
     exit 5
+fi
+
+##---------------------------------------------------##
+## v1.2.0 added logic flow capabilitiy,              ##
+## for when files need to be added / removed         ##
+## or changes needed to startup or service event,    ##
+## that can't be handled by the normal update prcess ##
+##---------------------------------------------------##
+
+if [ ! -f "$CURRENT_FLOW_FILE" ]; then
+    # code in this section can / will be changed depending on current logic flow needs
+
+    # remove legacy (pre v1.2.0) files
+    rm "${SCRIPT_NAME_DIR}/autostart_modsyslogui"
+    rm "${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
+    sed -i 's/autostart_modsyslogui/autostartup/' /jffs/scripts/services-start
+
+    rm -f "$LAST_FLOW_FILE" 2>/dev/null    #remove that last flow version file
+    touch "$CURRENT_FLOW_FILE"
+fi
+
+##-------------------------------------------------------------------------------------------##
+# v1.2.0 added amtmupdate state management functionality >> true = enabled, false = disabled ##
+##-------------------------------------------------------------------------------------------##
+if [ ! -f "$AMTMUPDATE_STATE_FILE" ] || ! grep -qwE "true|false" "$AMTMUPDATE_STATE_FILE"; then
+  echo "true" > "$AMTMUPDATE_STATE_FILE"
 fi
 
 # Make sure the version in custom_settings.txt matches the version of this script
@@ -775,5 +888,8 @@ case "${1}" in
     'disable') Disable_Filter ;;
     'enable') Enable_Filter ;;
     'uninstall') Uninstall ;;
-    *) Red "${1} is an unknown argument"; exit 1 ;;
+    'amtmupdate') shift; Update_FromAMTM "$@"; exit "$?";; #v1.2.0 - amtmupdate functionality
+	'postamtmupdate') exit 0 ;; #v1.2.0 - amtmupdate functionality, return immediatley to amtm after having run logic flow check
+    'autostartup') Auto_Startup ;; #v1.2.0 - changed router startup process, due to change of asp location to /tmp
+    *) log_msg "Red" "${1} is an unknown argument"; exit 1 ;;
 esac
