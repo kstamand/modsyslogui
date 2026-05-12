@@ -83,7 +83,8 @@ ALL System log records, generally start with a date and a tag. Examples;
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
-<img width="1090" height="455" alt="image" src="https://github.com/user-attachments/assets/69a9d914-7bfc-4de4-abc0-1469fa85f50d" />
+<img width="642" height="453" alt="image" src="https://github.com/user-attachments/assets/3904ff9c-d1dd-4927-a54b-8d9ff2796222" />
+
 
 To skip displaying the menu, you can run select options directly by running **modsyslogui** with one of the following parameters;
 
