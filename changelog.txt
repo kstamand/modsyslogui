@@ -1,3 +1,8 @@
+v1.3.0 (16-May-2026)
+  - Removed: Script - Debug functionality and associated console redirection
+  - Added:   Script - Github branch switching capabilities (Master and Develop); Show_Logo function (display branch + version)
+  - Updated: Script - Modified Main_Menu, removing unused functions (about, debug) + added new dynamic options (disable, enable, switch)
+
 v1.2.0 (11-May-2026)
   - Added: Script - amtmupdate functionality (includes allowing script to run unattended)
   - Added: Script - router bootup function (autostart), to accomodate changes to custom asp location
