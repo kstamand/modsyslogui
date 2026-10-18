@@ -2,10 +2,10 @@
 #----------------------------------------------------------------#
 #   __  __           _ ____            _             _   _ ___   #
 #  |  \/  | ___   __| / ___| _   _ ___| | ___   __ _| | | |_ _|  #
-#  | |\/| |/ _ \ / _` \___ \| | | / __| |/ _ \ / _` | | | || |   # 
-#  | |  | | (_) | (_| |___) | |_| \__ \ | (_) | (_| | |_| || |   # 
+#  | |\/| |/ _ \ / _` \___ \| | | / __| |/ _ \ / _` | | | || |   #
+#  | |  | | (_) | (_| |___) | |_| \__ \ | (_) | (_| | |_| || |   #
 #  |_|  |_|\___/ \__,_|____/ \__, |___/_|\___/ \__, |\___/|___|  #
-#                            |___/             |___/             #           
+#                            |___/             |___/             #
 #----------------------------------------------------------------#
 
 #----------------------------------------------------------------#
@@ -27,10 +27,11 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.2.0"
+readonly SCRIPT_VERSION="v1.3.0"    
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
-readonly GIT_URL="https://raw.githubusercontent.com/kstamand/modsyslogui/master"
+SCRIPT_BRANCH="develop"     # v1.3.0 - added git repo switching ability (stable dnd develop)
+SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH" # v1.3.0 - added git repo switching ability (stable dnd develop)
 readonly ADDON_DIR="/jffs/addons"
 readonly SCRIPT_NAME_DIR="${ADDON_DIR}/${SCRIPT_NAME}"
 readonly SCRIPT_INSTALL_PATH="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}"
@@ -47,13 +48,7 @@ readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
 readonly LOG_TAG="$SCRIPT_NAME"
-##---------------------------------------------------##
-## v1.1.0 added debugging toggle and logging to file ##
-##---------------------------------------------------##
-readonly DEBUG_LOG="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}_debug.txt"
-DEBUG_ENABLED=0 # this must not be set to readonly
-exec 3>&1 # IMPORTANT - this is necessary for log file redirection and console display to work properly throughout script
-readonly CONSOLE_FD=3
+
 ##---------------------------------------------------------##
 ## v1.1.0 added presets configuration and management files ##
 ##---------------------------------------------------------##
@@ -62,12 +57,13 @@ readonly PRESET_CONF="$SCRIPT_NAME_DIR/presets.conf"
 readonly WWW_PRESET_DIR="/www/user/modsyslogui/"
 readonly WWW_PRESET_JSON="/www/user/modsyslogui/presets.json"
 
-RED_TEXT='\033[31m'
-GREEN_TEXT='\033[32m'
-YELLOW_TEXT='\033[33m'
-MAGENTA_TEXT='\033[35m'
-CYAN_TEXT='\033[36m'
-RESET='\033[0m'
+readonly RED_TEXT='\033[31m'
+readonly GREEN_TEXT='\033[32m'
+readonly YELLOW_TEXT='\033[33m'
+readonly MAGENTA_TEXT='\033[35m'
+readonly CYAN_TEXT='\033[36m'
+readonly WHITE_TEXT='\033[1m'
+readonly RESET='\033[0m'
 
 ##--------------------------------------------------------------------##
 ## v1.0.1 supporfed firmware version check - inspired by Martinksi W. ##
@@ -86,27 +82,25 @@ esac
 ##---------------------------------##
 ## v1.2.0 amtmupdate functionality ##
 ##---------------------------------##
-AMTMUPDATE_STATE_FILE="${SCRIPT_NAME_DIR}/amtmupdate.state"
+readonly AMTMUPDATE_STATE_FILE="${SCRIPT_NAME_DIR}/amtmupdate.state"
 AMTMUPDATE_RUN_FLAG=false   # set to true only if update function initiated by amtmupdate
-CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be created
-LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v0" # set current logic flow version file to be deleted
+readonly CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be created
+readonly LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v0" # set current logic flow version file to be deleted
 ### End of Script Variables
 
-##------------------------------------------------------------------------------------------------##
-# v1.1.0 All UI output is explicitly sent to >&3 (the screen) for debug function to work properly ##
-##------------------------------------------------------------------------------------------------##
-Red() { printf -- '\033[1;31m%s\033[0m\n' "${1}" >&3; }
-Green() { printf -- '\033[1;32m%s\033[0m\n' "${1}" >&3; }
-Yellow() { printf -- '\033[1;33m%s\033[0m\n' "${1}" >&3; }
-Magenta() { printf -- '\033[1;35m%s\033[0m\n' "${1}" >&3; }
-Cyan() { printf -- '\033[1;36m%s\033[0m\n' "${1}" >&3; }
+Red() { printf -- '\033[1;31m%s\033[0m\n' "${1}"; }
+Green() { printf -- '\033[1;32m%s\033[0m\n' "${1}"; }
+Yellow() { printf -- '\033[1;33m%s\033[0m\n' "${1}"; }
+Magenta() { printf -- '\033[1;35m%s\033[0m\n' "${1}"; }
+Cyan() { printf -- '\033[1;36m%s\033[0m\n' "${1}"; }
+White() { printf -- '\033[1m%s\033[0m\n' "${1}"; }
 
 log_msg() {
     # $1 = display color; $2 = msg
     display_color="$1"
     msg="$2"
     if [ "$mode" = "interactive" ]; then
-        if ! $AMTMUPDATE_RUN_FLAG; then   # skip displaying progress info if called from amtm (amtmupdate)
+        if ! $AMTMUPDATE_RUN_FLAG; then   # v1.2.0 skip displaying progress info if called from amtm (amtmupdate)
             $display_color "$msg"
         fi
     else
@@ -114,112 +108,114 @@ log_msg() {
     fi
 }
 
-##----------------------------------------------------------##
-## v1.1.0 replaced original debug option in order to enable ##
-## capturing log output to a log file                       ##
-##----------------------------------------------------------##
-Enable_Debug() {
-    [ "$DEBUG_ENABLED" = "1" ] && {
-        log_msg "Yellow" "Debug already enabled"
-        return
-    }
+##------------------------------------------------------------##
+## v1.3.0 - added git hub repo switching (master and develop) ##
+##------------------------------------------------------------##
+Switch_Master () {
+    SCRIPT_BRANCH="maste"
+    SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH"
+    Update master
+} # end Switch_Master ()
 
-    mkdir -p "$(dirname "$DEBUG_LOG")"
-    
-    # Standard ash-friendly redirection: Everything goes to log file
-    exec > "$DEBUG_LOG" 2>&1
-    
-    set -x
-    DEBUG_ENABLED=1
-    printf "\n===== Debug enabled: %s =====\n" "$(date)" >>"$DEBUG_LOG"
-    log_msg "Yellow" "Debug enabled and output being captured in ${DEBUG_LOG}"
-} # end Enable_Debug()
+Switch_Develop () {
+    SCRIPT_BRANCH="develop"
+    SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH"
+    Update develop
+}
 
-##--------------------------------##
-## v1.1.0 added Disable Debugging ##
-##--------------------------------##
-Disable_Debug() {
-    [ "$DEBUG_ENABLED" = "0" ] && return
-
-    set +x
-    # Restore stdout and stderr to File Descriptor 3 (the screen)
-    exec 1>${CONSOLE_FD} 2>${CONSOLE_FD}
-
-    DEBUG_ENABLED=0
-    log_msg "Yellow" "Debug disabled - see ${DEBUG_LOG}"
-} # end Disable_Debug()
-
-##-------------------------------------------------------------------------------------------------##
-## v1.1.0 redirection (>&3) added to keep output on screen after adding debug to log functionality ##
-##-------------------------------------------------------------------------------------------------##
 Press_Enter(){
-    printf "\n" >&3
-    printf "Press enter to continue..." >&3
+    printf "\n"
+    printf "Press enter to continue..."
     read -r key
     return 0
 } # end Press_Enter()
 
+##------------------------------------------------------------##
+## v1.3.0 - added git hub repo switching (master and develop) ##
+##------------------------------------------------------------##
+Show_Logo(){
+    local str_branch str_version left right upper_branch
+
+    upper_branch=$(echo "$SCRIPT_BRANCH" | tr 'a-z' 'A-Z')
+    # Define the color for the branch based on the repo status
+   if [ "$SCRIPT_BRANCH" = "master" ]; then
+        str_branch="${GREEN_TEXT}${upper_branch}${RESET}"
+        str_version="${GREEN_TEXT}${SCRIPT_VERSION}${RESET}" 
+   else
+        str_branch="${MAGENTA_TEXT}${upper_branch}${RESET}"
+        str_version="${MAGENTA_TEXT}${SCRIPT_VERSION}${RESET}"
+   fi
+    left=$(printf "%b" "$str_branch")
+    right=$(printf "%b" "$str_version")
+
+    White "#----------------------------------------------------------------#"
+    White "#   __  __           _ ____            _             _   _ ___   #"
+    White "#  |  \/  | ___   __| / ___| _   _ ___| | ___   __ _| | | |_ _|  #"
+    White "#  | |\/| |/ _ \ / _| \___ \| | | / __| |/ _ \ / _  | | | || |   #"
+    White "#  | |  | | (_) | (_| |___) | |_| \__ \ | (_) | (_| | |_| || |   #"
+    White "#  |_|  |_|\___/ \____|____/ \___ |___/_|\___/ \__  |\___/|___|  #"
+    White "#                            |___/             |___/             #"
+    
+    # Print the line: Green border/text, then the dynamic branch color, then back to Green for the end border
+    printf "${WHITE_TEXT}#      Branch: %-28s ${WHITE_TEXT}Version: %-27s ${WHITE_TEXT}  #\n" "$left" "$right"
+
+    White "#----------------------------------------------------------------#"
+    printf "\n"
+}
+
 Main_Menu() {
-    clear >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
-    # Use 'cat' to ensure banner goes to screen via FD 3
-    sed -n '2,9p' "${SCRIPT_INSTALL_PATH}" >&3
-    Scriptinfo
+    clear
+    Show_Logo
     
-    # These functions now use >&3 internally
-    log_msg "Cyan" "  (1)  About                explain functionality"
-    log_msg "Cyan" "  (2)  Help                 information on how to use this script"
-    log_msg "Cyan" "  (3)  Install              install all script files"
-    log_msg "Cyan" "  (4)  Update               check for script updates"
-    log_msg "Cyan" "  (5)  Edit                 edit logFilter.json"
-    log_msg "Cyan" "  (6)  Disable              disable dynamic UI filtering"
-    log_msg "Cyan" "  (7)  Enable               enable dynamic UI filtering"
-    log_msg "Cyan" "  (8)  Enable Debug         enable logging to file"
-    log_msg "Cyan" "  (9)  Disable debug        disable logging"
-    if [ $(Get_Amtmupdate_State) = true ]; then
-        log_msg "Cyan" "  (da) Disable Amtmupdate   disable amtmupdate auto updates"
-    else 
-        log_msg "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
+    "Cyan" "  (1)  Help                 information on how to use this script"
+    "Cyan" "  (2)  Install              install all script files"
+    "Cyan" "  (3)  Update               check for script updates"
+    "Cyan" "  (4)  Edit                 edit logFilter.json"
+    if [ -f "$CUSTOM_SYSLOG_ASP_FILE" ]; then
+        if grep -q "$SCRIPT_NAME" "$CUSTOM_SYSLOG_ASP_FILE"; then
+            "Cyan" "  (dm) Disable modsyslogui  disable dynamic UI filtering"
+        else
+            "Cyan" "  (em) Enable modsyslogui   enable dynamic UI filtering"
+        fi
+    else
+        "Cyan" "  (em) Enable modsyslogui   enable dynamic UI filtering"
     fi
-    log_msg "Cyan" "  (z) Uninstall             completely remove script"
-    log_msg "Cyan" "  (e) Exit                  exit"
+    if [ $(Get_Amtmupdate_State) = true ]; then
+        "Cyan" "  (da) Disable Amtmupdate   disable amtmupdate auto updates"
+    else 
+        "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
+    fi
+    if [ "$SCRIPT_BRANCH" = "master" ]; then
+        "Cyan" "  (sd) Switch develop           switch to development branch (BETA TESTERS ONLY)"
+    else
+        "Cyan" "  (sm) Switch master        switch to the master branch (Stable / Production code base)"
+    fi
+    "Cyan" "  (z)  Uninstall            completely remove script"
+    "Cyan" "  (e)  Exit                 exit"
     
-    printf "\nMake a selection: " >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
+    printf "\nMake a selection: "
     read -r input
     
     case "${input}" in
-        '1') clear >&3; About ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
-        '2') clear >&3; Show_Help ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
-        '3') Install ;;
-        '4') Update; exec "$0" ;; # v1.1.0 - re-execute script to show updated ver
-        '5') Edit ;;
-        '6') Disable_Filter ;;
-        '7') Enable_Filter ;;
-        '8') Enable_Debug ;; # v1.1.0 - renamed after adding logging to file + disable_debut
-        '9') Disable_Debug ;; # v1.1.0 - added toggle
+        '1') clear; Show_Help ;; 
+        '2') Install ;;
+        '3') Update; exec "$0" ;; # v1.1.0 - re-execute script to show updated ver
+        '4') Edit ;;
+        'dm') Disable_Filter ;;
+        'em') Enable_Filter ;;
         'da'|'ea'|'DA'|'EA') Toggle_Amtmupdate ;; # v1.2.0 - disable or enable amtmupdate auto updates
+        'sm') Switch_Master ;; # v1.3.0 - added github repo branch switching Master and Develop
+        'sd') Switch_Develop ;; # v1.3.0 - added github repo branch switching Master and Develop
         'z') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
         'e'|'E'|'exit') return ;;
-        *) printf "\n" >&3; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;; # v1.1.0 added redirection (>&3) in support of debug to log functionality
+        *) printf "\n"; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;; 
     esac
     Press_Enter
     Main_Menu
 } # end Main_Menu
 
-About() {
-    Scriptinfo
-    # v1.1.0 Wrap 'cat' blocks to FD 3 so they show on screen during debug
-    {
-    cat <<EOF
-License: ${SCRIPT_NAME_DISPLAY} is free to use under MIT license.
-About: This script adds dynamic filtering to the System Log web page.
-EOF
-    } >&3 # v1.1.0
-} # end About()
-
 Show_Help() {
     echo -e "${CYAN_TEXT}"
-    # v1.1.0 Wrap 'cat' blocks to FD 3 so they show on screen during debug
-    {
     cat <<EOF
 The default filtering capabilities on the Systme Log page of the router is limited to hardcoded text strings
 in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
@@ -241,13 +237,16 @@ For reference, the following are the default contents of the "logFilter.json" fi
     ]
     }
 EOF
-    } >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
+
 echo -e "${RESET}"
 } # end Show_Help ()
 
+##------------------------------------------------------------##
+## v1.3.0 - added git hub repo switching (master and develop) ##
+##------------------------------------------------------------##
 Show_ArgsHelp () {
     echo -e "${YELLOW_TEXT}"
-    {
+
     cat <<EOF
 Rerun the script with no arguments or use one of the following:
    modsyslogui menu 
@@ -256,16 +255,18 @@ Rerun the script with no arguments or use one of the following:
    modsyslogui disable"
    modsyslogui enable"
    modsyslogui uninstall"
+   modsyslogui master"
+   modsyslogui develop"
 EOF
-    } >&3 # v1.1.0 added redirection (>&3) in support of debug to log functionality
+
 echo -e "${RESET}"
 } # end Show_ArgsHelp()
 
 Scriptinfo() {
     # Version header used in interactive sessions
-    printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
+    printf "\n"
     log_msg "Green" "${SCRIPT_NAME_DISPLAY} ${SCRIPT_VERSION}"
-    printf "\n" >&3 # v1.1.0 - to keep output on screen, after adding debug to log file capability
+    printf "\n"
 } # end of Scriptinfo ()
 
 Check_Firmware() {
@@ -284,12 +285,12 @@ Download_File() {
     # Parameter options: $1 = file name to download, $2 = full path + filename to download to
     # Download file from Github once to a temp location. If the same as the destination file, don't replace.
     # Otherwise move it from the temp location to the destination.
-    if curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${GIT_URL}/${1}" -o "/tmp/${1}"; then
+    if curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${SCRIPT_REPO}/${1}" -o "/tmp/${1}"; then
         if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
             mv -f "/tmp/${1}" "${2}"
             log_msg "Green" "   - Installing $(basename "${1}")"
         else
-            log_msg "Yellow" "  File $(basename "${2}") is already up-to-date"
+            #log_msg "Yellow" "  File $(basename "${2}") is already up-to-date" #v1.3.0 no longer displaying this msg
             rm -f "/tmp/${1}" 2>/dev/null
         fi
     else
@@ -687,6 +688,16 @@ Uninstall() {
 } # end of Uninstall()
 
 Update() {    
+    # Parameter options
+    # None - check for updates and present choice to force if no updates, then re-execute script after update and show menu
+    # $1 = amtmupdate, running from amtm update, skip version check,minimize console output, then re-execute script then exit (postamtmupdate)
+    # $1 = master or develop, executing a branch switch, skip version check, then re-execute script and show menu
+    local switch_branch
+    switch_branch="" 
+    [ "$1" = "master" ] && switch_branch="master"
+    [ "$1" = "develop" ] && switch_branch="develop"
+   
+    # if called without any parameters, check if any updates available
     if [ ! "$1" = "amtmupdate" ]; then # if running via amtmupdate, skip version checking - already done
         # Check for, and optionally apply updates.
         # Parameter options: check (do not update), silent (update without prompting)
@@ -696,7 +707,7 @@ Update() {
         # Update the webui status thorugh detect_update.js ajax call.
         # Get the version of the script on Github
         localver="$(grep "SCRIPT_VERSION=" ${SCRIPT_INSTALL_PATH} | grep -m1 -oE "${scriptVersRegExp}")"
-        remotever="$(curl -fsL --retry 4 --retry-delay 5 "${GIT_URL}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
+        remotever="$(curl -fsL --retry 4 --retry-delay 5 "${SCRIPT_REPO}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
         # Compare local and remote versions to see how to proceed
         if [ "${localver}" != "${remotever}" ]; then
             # version upgrade
@@ -733,28 +744,41 @@ Update() {
     Download_Script_Files      # Download all associated files
     Mod_Syslog_Asp install     # Re-Enable - Add filtering mod back to System Lot UI
 
+    # if Update was called from amtmupdate, then re-execute the script then immediately run post ampduate logic check
     if $AMTMUPDATE_RUN_FLAG; then 
         exec "$0" postamtmupdate    # rexecute the script, to run the logic flow check then exist immediately and return cleanly to amtm
     fi
     
+    ##------------------------------------------------------------##
+    ## v1.3.0 - added git hub repo switching (master and develop) ##
+    ##------------------------------------------------------------##
+    if [ "$switch_branch" = "master" ]; then
+        log_msg "Green" "Completed switch to the stable (master) branch"
+        Press_Enter
+        exec "$0"
+    elif [ "$switch_branch" = "develop" ]; then
+        log_msg "Magenta" "Completed switch to the develop branch"
+        Press_Enter
+        exec "$0"
+    fi
+
     # Output completion message
-    log_msg "Green" "Completed installing script updates"
+    log_msg "Green" "Completed installing updates"
     return 0
 } # end of Update()
 
 ##---------------------------------##
 ## v1.2.0 amtmupdate functionality ##
 ##---------------------------------##
-Update_FromAMTM()
-{
+Update_FromAMTM() {
+    # Parameters - none
     amtmupdate_state=$(Get_Amtmupdate_State)
-    if ! "$amtmupdate_state"        #if not true, then amtmupdate state has been disabled
-    then
+    if ! "$amtmupdate_state"; then        #if not true, then amtmupdate state has been disabled
         log_msg "Yellow" "Automatic script updates via AMTM are currently disabled."
         return 1
     fi
-    if [ $# -gt 0 ] && [ "$1" = "check" ]
-    then return 0
+    if [ $# -gt 0 ] && [ "$1" = "check" ]; then
+        return 0
     fi
     log_msg "Cyan" "$SCRIPT_NAME_DISPLAY Running amtmupdate"
     AMTMUPDATE_RUN_FLAG=true     # set amtmupdate run flag to true, so we can minimize console output
@@ -763,6 +787,7 @@ Update_FromAMTM()
 } # end Update_FromAMTM()
 
 Edit () {
+    # Parameters - none
     local before_hash 
     local after_hash 
 
@@ -821,7 +846,7 @@ Toggle_Amtmupdate() {
 
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
 ## Script Mainline
-clear >&3 # v1.1.0 - added redirection (>3) to keep output on screen after adding debug to log functionality
+clear
 
 # Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
 if tty >/dev/null 2>&1; then
@@ -891,5 +916,10 @@ case "${1}" in
     'amtmupdate') shift; Update_FromAMTM "$@"; exit "$?";; #v1.2.0 - amtmupdate functionality
 	'postamtmupdate') exit 0 ;; #v1.2.0 - amtmupdate functionality, return immediatley to amtm after having run logic flow check
     'autostartup') Auto_Startup ;; #v1.2.0 - changed router startup process, due to change of asp location to /tmp
+    ##------------------------------------------------------------##
+    ## v1.3.0 - added git hub repo switching (master and develop) ##
+    ##------------------------------------------------------------##
+    'develop') Switch_Develop ;; # v1.3.- added GitHub repo switch capability Master or Develop
+	'master') Switch_Master ;; # v1.3.- added GitHub repo switch capability Master or Develop
     *) log_msg "Red" "${1} is an unknown argument"; exit 1 ;;
 esac

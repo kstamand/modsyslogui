@@ -16,7 +16,7 @@
  * 1. .slice(26, -4): Strips 'memory_log = "' prefix and '";' suffix from AJAX response.
  * 2. htmlEncode: Sanitizes < and > to prevent UI breakage or HTML injection.
  */
-var logString = htmlEnDeCode.htmlEncode(response.toString().slice(26,-4));
+var logString = response.toString().slice(26,-4);
 
 // Accumulator for lines passing the filter; injected into the textarea at the end.
 var _log = '';
