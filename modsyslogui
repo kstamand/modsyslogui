@@ -186,7 +186,7 @@ Main_Menu() {
         "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
     fi
     if [ "$SCRIPT_BRANCH" = "master" ]; then
-        "Cyan" "  (sd) Switch develop           switch to development branch (BETA TESTERS ONLY)"
+        "Cyan" "  (sd) Switch develop       switch to development branch (BETA TESTERS ONLY)"
     else
         "Cyan" "  (sm) Switch master        switch to the master branch (Stable / Production code base)"
     fi
