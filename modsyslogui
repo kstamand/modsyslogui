@@ -542,7 +542,7 @@ Install() {
     if [ ! Check_Firmware ]; then
         log_msg "Red" "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
         Press_Enter
-        rm -f "${0}" 2>/dev/nullf
+        rm -f "${0}" 2>/dev/null
         exit 5
     fi
 
