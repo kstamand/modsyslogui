@@ -1,4 +1,3 @@
-```yaml
 name: Update Master References
 
 on:
@@ -41,4 +40,3 @@ jobs:
             git commit -m "Update branch references for master"
             git push origin master
           fi
-```
