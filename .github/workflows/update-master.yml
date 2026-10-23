@@ -1,0 +1,44 @@
+```yaml
+name: Update Master References
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  update-references:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Update README and script
+        run: |
+          # Update the README GitHub URL
+          sed -i 's|/blob/develop/|/blob/master/|g' README.md
+
+          # Update the script branch setting
+          sed -i 's/^SCRIPT_BRANCH="develop"$/SCRIPT_BRANCH="master"/' modsyslogui
+
+      - name: Commit changes
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md modsyslogui
+            git commit -m "Update branch references for master"
+            git push origin master
+          fi
+```
