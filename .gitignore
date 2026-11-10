@@ -1,18 +1,18 @@
-//++ Start .gitignore
 # System junk
 .DS_Store
 Thumbs.db
 
-# Router/Testing temp files
-# (Add any local log files or test outputs you generate)
-nc.txt
-*.log
-temp/
+# development / testing files
+deploy.sh
 
-# Preset backups (if you pull them for manual editing)
-*.conf.bak
+# Claude related files
+CLAUDE.md
+.claude/
+
 
 # VS Code or Editor specific settings
 .vscode/
 .idea/
-//++ End .gitignore
+
+# Local router capture (not published)
+router-env.txt

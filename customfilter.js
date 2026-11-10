@@ -45,7 +45,13 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
     var validEl = document.getElementById("logical-validation");
     
     var mode = modeEl ? modeEl.id : "ShowAll";
-    var filterText = inputEl ? inputEl.value.trim() : ""; 
+    var filterText = inputEl ? inputEl.value.trim() : "";
+
+    // v1.4.0 - Match case (default on = case-sensitive, as before). When off, log lines
+    // and search terms are compared in lowercase. Operators stay UPPERCASE-only.
+    var caseEl = document.getElementById("match_case");
+    var matchCase = caseEl ? caseEl.checked : true;
+    var norm = matchCase ? function(s) { return s; } : function(s) { return s.toLowerCase(); };
 
     /**
      * UI State Reset:
@@ -69,22 +75,35 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
      * we trigger a syntax error instead of showing an empty log.
      */
     if (filterText !== "" && mode === "Logical") {
-        var upText = filterText.toUpperCase();
-        
-        // Check for common lowercase errors
-        var hasLowerOp = (filterText.includes(" and ") || filterText.includes(" or ") || filterText.includes(" not "));
-        
-        // Identify valid whitelisted operators (must have spaces)
-        var hasValidOp = (upText.indexOf(" AND ") !== -1 || upText.indexOf(" OR ") !== -1 || upText.indexOf(" AND NOT ") !== -1);
-        
-        // Catch typos (e.g., 'AAND', 'ORR', 'NOTT') or missing spaces
-        var logicTypo = (upText.indexOf("NOTT") !== -1 || upText.indexOf("ANDNOT") !== -1);
-        var logicIntentWithoutSpaces = (upText.includes("AND") || upText.includes("OR") || upText.includes("NOT"));
+        /**
+         * v1.4.0 - operators are checked on the text exactly as typed (UPPERCASE only),
+         * using whole words, so terms like ERROR / FORWARD / NOTICE are not mistaken for operators.
+         */
+        // Valid operators (must be uppercase with spaces); only one per filter is supported
+        var opMatches = filterText.match(/ (AND NOT|AND|OR) /g) || [];
+        var hasValidOp = opMatches.length > 0;
 
-        if (hasLowerOp || logicTypo || (logicIntentWithoutSpaces && !hasValidOp)) {
+        // Lowercase operator words are only an error when no valid operator is present
+        // (the user most likely meant an operator), otherwise they are plain search words
+        var hasLowerOp = !hasValidOp && / (and|or|not) /.test(" " + filterText + " ");
+
+        // Catch typos (e.g., 'ANDNOT', 'NOTT')
+        var logicTypo = /ANDNOT|NOTT/.test(filterText);
+
+        // Operator word with a missing term or missing spaces (e.g., 'eth0 NOT', 'kernel AND')
+        var logicIntentWithoutSpaces = /\b(AND|OR|NOT)\b/.test(filterText);
+
+        var syntaxMsg = "";
+        if (opMatches.length > 1) {
+            syntaxMsg = "Syntax: Only ONE operator per filter is supported (' AND ', ' OR ', or ' AND NOT ').";
+        } else if (hasLowerOp || logicTypo || (logicIntentWithoutSpaces && !hasValidOp)) {
+            syntaxMsg = "Syntax: Use UPPERCASE ' AND ', ' OR ', or ' AND NOT ' with spaces.";
+        }
+
+        if (syntaxMsg !== "") {
             if (validEl) {
                 validEl.classList.remove("collapsed");
-                validEl.innerHTML = "Syntax: Use UPPERCASE ' AND ', ' OR ', or ' AND NOT ' with spaces.";
+                validEl.innerHTML = syntaxMsg;
             }
             _log = _string.join('\n'); // Fallback: Show all logs during error state
             return;
@@ -111,12 +130,20 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
             rawT1 = filterText; 
         }
 
-        term1 = rawT1.trim().split(/\s+/).filter(Boolean);
-        term2 = rawT2.trim().split(/\s+/).filter(Boolean);
+        term1 = rawT1.trim().split(/\s+/).filter(Boolean).map(norm);
+        term2 = rawT2.trim().split(/\s+/).filter(Boolean).map(norm);
     } else {
         // Standard Comma-Separated Mode
-        var terms = filterText.split(',').map(function(t){ return t.trim(); }).filter(Boolean);
+        var terms = filterText.split(',').map(function(t){ return norm(t.trim()); }).filter(Boolean);
     }
+
+    /**
+     * matchWords: line contains EVERY word in a term set (Array.every).
+     * v1.4.0 - defined once, instead of once per log line.
+     */
+    var matchWords = function(l, words) {
+        return words.every(function(w) { return l.indexOf(w) !== -1; });
+    };
 
     /* --- Primary Processing Loop --- */
     for (var i = 0; i < _string.length; i++) {
@@ -133,31 +160,25 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
         if (skipByTag) continue;
 
         // LAYER 2: ModSyslogUI Manual/Logical Filter
+        // v1.4.0 - cmp is the line as compared (lowercased when Match case is off)
         var display = true;
         if (filterText !== "" && mode !== "ShowAll") {
+            var cmp = norm(line);
             if (mode === "Include") {
-                display = terms.some(function(t) { return line.indexOf(t) !== -1; });
+                display = terms.some(function(t) { return cmp.indexOf(t) !== -1; });
             } else if (mode === "Exclude") {
-                display = !terms.some(function(t) { return line.indexOf(t) !== -1; });
+                display = !terms.some(function(t) { return cmp.indexOf(t) !== -1; });
             } else if (mode === "Logical") {
-                /**
-                 * @function matchWords
-                 * @logic Checks if a line contains EVERY word in a term set (Array.every).
-                 */
-                var matchWords = function(l, words) {
-                    return words.every(function(w) { return l.indexOf(w) !== -1; });
-                };
-
                 if (op === "") {
-                    display = matchWords(line, term1);
+                    display = matchWords(cmp, term1);
                 } else if (term2.length > 0) {
-                    var has1 = matchWords(line, term1);
-                    var has2 = matchWords(line, term2);
+                    var has1 = matchWords(cmp, term1);
+                    var has2 = matchWords(cmp, term2);
                     if (op === "AND NOT") display = (has1 && !has2);
                     else if (op === "AND") display = (has1 && has2);
                     else if (op === "OR") display = (has1 || has2);
                 } else {
-                    display = matchWords(line, term1);
+                    display = matchWords(cmp, term1);
                 }
             }
         }
@@ -166,9 +187,20 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
     }
 })();
 
-// DOM Update and Auto-Scroll
-document.getElementById("textarea").value = _log;
-document.getElementById("textarea").scrollTop = 9999999;
+/**
+ * DOM Update and Auto-Scroll
+ * v1.4.0 - only rewrite the textarea when the content changed, and only jump to the
+ * bottom if the user was already at the bottom (or just changed the filter), so
+ * scrolling up to read older lines is no longer interrupted every 3 seconds.
+ */
+(function() {
+    var ta = document.getElementById("textarea");
+    if (!ta || ta.value === _log) return;
+    var atBottom = (ta.scrollHeight - ta.scrollTop - ta.clientHeight) < 20;
+    var keepTop = ta.scrollTop;
+    ta.value = _log;
+    ta.scrollTop = (atBottom || window.isManualFiltering) ? ta.scrollHeight : keepTop;
+})();
 
 window.isManualFiltering = false; 
 setTimeout(get_log_data, 3000);

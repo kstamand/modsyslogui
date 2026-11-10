@@ -51,6 +51,66 @@
     };
 
     /**
+     * @function exportFilteredLog
+     * @purpose v1.4.0 - Saves exactly what is displayed in the log textarea (filtered) to a file.
+     * @logic
+     * 1. Snapshot #textarea.value (already filtered by customfilter.js).
+     * 2. Prepend a short "#" header: version, router, time, active filter, line count.
+     * 3. Download via Blob + <a download>; the browser decides the location
+     *    (Downloads folder, or a "Save As" prompt if the user enabled that in the browser).
+     * @dependency msui_router (customui.xml), custom_settings.ModSyslogUI_ver
+     */
+    window.exportFilteredLog = function() {
+        var ta = document.getElementById("textarea");
+        var body = ta ? ta.value : "";
+        if (!body.trim()) { alert("Nothing to export - the log view is empty."); return; }
+        if (body.charAt(body.length - 1) !== "\n") body += "\n";
+
+        var modeEl = document.querySelector('input[name="filter_options"]:checked');
+        var inputEl = document.getElementById("filter_text");
+        var validEl = document.getElementById("logical-validation");
+        var text = inputEl ? inputEl.value.trim() : "";
+        var mode = (modeEl && text !== "") ? modeEl.id : "ShowAll";
+        var filterDesc = (mode === "ShowAll") ? "Show All" : mode + ": " + text;
+        var caseEl = document.getElementById("match_case");
+        if (mode !== "ShowAll" && caseEl && !caseEl.checked) filterDesc += "  (case-insensitive)";
+        if (mode === "Logical" && validEl && !validEl.classList.contains("collapsed")) {
+            filterDesc += "  (syntax error - log shown unfiltered)";
+        }
+
+        var d = new Date();
+        var p2 = function(n) { return (n < 10 ? "0" : "") + n; };
+        var ymd = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+        var hms = p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds());
+        var stamp = ymd.replace(/-/g, "") + "-" + hms.replace(/:/g, "");
+
+        var r = window.msui_router || {};
+        var fw = (r.firmver ? r.firmver.replace(/\./g, "") + "." : "") + (r.buildno || "");
+        var ver = (window.custom_settings && window.custom_settings.ModSyslogUI_ver) || "";
+        var count = body.split("\n").filter(Boolean).length;
+
+        var header = [
+            "# ModSyslogUI " + ver + " filtered log export",
+            "# Router:   " + (r.model || "unknown") + (fw ? " (" + fw + ")" : ""),
+            "# Exported: " + ymd + " " + hms,
+            "# Filter:   " + filterDesc,
+            "# Lines:    " + count,
+            "#" + new Array(60).join("-"),
+            ""
+        ].join("\n");
+
+        var blob = new Blob([header + body], { type: "text/plain;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "syslog_" + mode + "_" + stamp + ".txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    };
+
+    /**
      * @function applyPresetSelection
      * @purpose Maps a chosen preset from the dropdown to the active UI filters.
      * @param {string} val - The name of the preset to apply.
@@ -62,6 +122,8 @@
         var radio = document.getElementById(p.action);
         if (radio) radio.checked = true;
         document.getElementById("filter_text").value = p.filter_text;
+        var mc = document.getElementById("match_case");   // v1.4.0
+        if (mc) mc.checked = p.matchCase;
         window.debounceFilter();
     };
 
@@ -84,6 +146,7 @@
             document.getElementById("m_preset_mode").value = p.action;
             document.getElementById("m_preset_text").value = p.filter_text;
             document.getElementById("m_preset_default").checked = p.isDefault;
+            document.getElementById("m_preset_matchcase").checked = p.matchCase;   // v1.4.0
         } else {
             document.getElementById("m_preset_name").value = "";
             document.getElementById("m_preset_name").readOnly = false;
@@ -92,6 +155,8 @@
             document.getElementById("m_preset_mode").value = cur ? cur.id : "Include";
             document.getElementById("m_preset_text").value = document.getElementById("filter_text").value;
             document.getElementById("m_preset_default").checked = false;
+            var mc = document.getElementById("match_case");   // v1.4.0 - start from the current setting
+            document.getElementById("m_preset_matchcase").checked = mc ? mc.checked : true;
         }
         modal.classList.remove("collapsed");
     };
@@ -131,13 +196,17 @@
 
         if(!n) { alert("Name required."); return; }
         if (m === "Logical") {
-            var up = t.toUpperCase();
-            if (up.indexOf("AND") === -1 && up.indexOf("OR") === -1) {
-                alert("Logical mode requires: AND, OR, or AND NOT"); return;
+            // v1.4.0 - same rule as the live filter: ONE uppercase operator with spaces
+            var ops = t.match(/ (AND NOT|AND|OR) /g) || [];
+            if (ops.length !== 1) {
+                alert("Logical mode requires ONE of: AND, OR, or AND NOT (uppercase, with spaces)"); return;
             }
         }
 
-        var payload = action + ":" + n + "|" + d + "|" + m + "|" + t + "|" + def;
+        // v1.4.0 - 6th field: match case (true|false). Older presets without it default to true.
+        var mcase = document.getElementById("m_preset_matchcase").checked ? "true" : "false";
+
+        var payload = action + ":" + n + "|" + d + "|" + m + "|" + t + "|" + def + "|" + mcase;
         submitToRouter(payload);
         window.closePresetModal();
     };
@@ -224,7 +293,8 @@
                         desc: bits[1], 
                         action: bits[2], 
                         filter_text: bits[3], 
-                        isDefault: bits[4] === "true" 
+                        isDefault: bits[4] === "true",
+                        matchCase: bits.length > 5 ? bits[5] !== "false" : true   // v1.4.0 - optional 6th field
                     };
                     presetsData.push(p);
                     var opt = document.createElement("option");

@@ -1,3 +1,24 @@
+v1.4.0 (11-Nov-2026)
+  - Added:   SyslogUI - Export button: saves the currently displayed (filtered) log records to a text file, with a header (router, time, filter, line count)
+  - Added:   SyslogUI - Match case option (default on); uncheck for case-insensitive Include / Exclude / Logical terms
+  - Added:   Presets - optional 6th field for Match case (existing presets load as case-sensitive)
+  - Fixed:   SyslogUI - Logical mode false "Syntax" error on terms containing AND / OR / NOT (e.g. ERROR, FORWARD, NOTICE)
+  - Updated: SyslogUI - Logical mode reports more than one operator as a syntax error (previously ignored part of the filter)
+  - Updated: SyslogUI - log view no longer jumps to the bottom every refresh while scrolled up; only redrawn when changed
+  - Updated: SyslogUI - compact preset buttons (Save | Edit | Delete | Export on one row)
+  - Fixed:   Presets - names containing special characters (/ . * etc.) could break or over-match save / edit / delete
+  - Added:   Script - System Log page validation; the custom page is only mounted if built correctly, otherwise the stock page is left in place
+  - Updated: Script - enable / install / update always rebuild the page from a fresh stock copy (prevents duplicate code and mounts)
+  - Updated: Script - updates download all files first; nothing is changed if any download fails
+  - Fixed:   Script - GitHub unreachable was reported as "update available"
+  - Fixed:   Script - firmware / JFFS support check never ran during install
+  - Fixed:   Script - branch switch back to stable branch (typo); branch renamed master -> main ('master' argument still accepted)
+  - Fixed:   Script - install without a terminal no longer loops in the menu; screen only cleared in interactive sessions
+  - Fixed:   Script - misc. (custom_settings version not saved on install, undefined name in uninstall messages, syntax error in argument check, echo -e)
+  - Updated: Script - only lines tagged "# added by modsyslogui" are changed in services-start / service-event
+  - Updated: Script - addon directory follows the script location (supports a separate test install)
+  - Updated: README - Export, Match case, branch (main / develop) instructions, corrected menu option and debugging info
+
 v1.3.0 (18-Oct-2026)
   - Removed: Script - Debug functionality and associated console redirection
   - Added:   Script - Github branch switching capabilities (Master and Develop); Show_Logo function (display branch + version)

@@ -13,7 +13,7 @@
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2026-05-11
+# Date:         2026-11-11
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
@@ -27,13 +27,31 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.3.0"    
+readonly SCRIPT_VERSION="v1.4.0"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
-SCRIPT_BRANCH="master"     # v1.3.0 - added git repo switching ability (stable dnd develop)
-SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH" # v1.3.0 - added git repo switching ability (stable dnd develop)
+SCRIPT_BRANCH="develop"     # v1.3.0 - added git repo switching ability (main and develop)
+SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH" # v1.3.0 - added git repo switching ability (main and develop)
 readonly ADDON_DIR="/jffs/addons"
-readonly SCRIPT_NAME_DIR="${ADDON_DIR}/${SCRIPT_NAME}"
+##----------------------------------------------------------------------##
+## v1.4.0 - addon directory follows where the script runs from:         ##
+##   /jffs/addons/modsyslogui (production) or                           ##
+##   /jffs/addons/test/modsyslogui (test) or                            ##
+##   /tmp/modsyslogui (developer scratch, see deploy.sh).               ##
+##   Anywhere else (e.g. /tmp/modsyslogui as a file, for a fresh        ##
+##   install) defaults to production, unless MODSYSLOGUI_DIR is set to  ##
+##   one of the allowed directories.                                    ##
+##----------------------------------------------------------------------##
+Resolve_Addon_Dir() {
+    local self_dir want
+    self_dir="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+    want="${MODSYSLOGUI_DIR:-$self_dir}"
+    case "$want" in
+        "${ADDON_DIR}/${SCRIPT_NAME}"|"${ADDON_DIR}/test/${SCRIPT_NAME}"|"/tmp/${SCRIPT_NAME}") printf '%s' "$want" ;;
+        *) printf '%s' "${ADDON_DIR}/${SCRIPT_NAME}" ;;
+    esac
+}
+readonly SCRIPT_NAME_DIR="$(Resolve_Addon_Dir)"
 readonly SCRIPT_INSTALL_PATH="${SCRIPT_NAME_DIR}/${SCRIPT_NAME}"
 readonly SCRIPT_AUTOSTART_CMD="${SCRIPT_INSTALL_PATH} autostartup"
 readonly SETTINGS_FILE="/jffs/addons/custom_settings.txt"
@@ -48,6 +66,9 @@ readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
 readonly LOG_TAG="$SCRIPT_NAME"
+# v1.4.0 - developer scratch run from /tmp/modsyslogui (deploy.sh): no persistent writes outside /tmp
+if [ "$SCRIPT_NAME_DIR" = "/tmp/${SCRIPT_NAME}" ]; then SCRATCH_RUN=true; else SCRATCH_RUN=false; fi
+readonly SCRATCH_RUN
 
 ##---------------------------------------------------------##
 ## v1.1.0 added presets configuration and management files ##
@@ -111,11 +132,11 @@ log_msg() {
 ##------------------------------------------------------------##
 ## v1.3.0 - added git hub repo switching (master and develop) ##
 ##------------------------------------------------------------##
-Switch_Master () {
-    SCRIPT_BRANCH="maste"
+Switch_Main () {
+    SCRIPT_BRANCH="main"    # v1.4.0 - fixed "maste" typo; branch renamed master -> main
     SCRIPT_REPO="https://raw.githubusercontent.com/kstamand/$SCRIPT_NAME/$SCRIPT_BRANCH"
-    Update master
-} # end Switch_Master ()
+    Update main
+} # end Switch_Main ()
 
 Switch_Develop () {
     SCRIPT_BRANCH="develop"
@@ -136,11 +157,11 @@ Press_Enter(){
 Show_Logo(){
     local str_branch str_version left right upper_branch
 
-    upper_branch=$(echo "$SCRIPT_BRANCH" | tr 'a-z' 'A-Z')
+    upper_branch=$(echo "$SCRIPT_BRANCH" | tr '[:lower:]' '[:upper:]')
     # Define the color for the branch based on the repo status
-   if [ "$SCRIPT_BRANCH" = "master" ]; then
+   if [ "$SCRIPT_BRANCH" = "main" ]; then
         str_branch="${GREEN_TEXT}${upper_branch}${RESET}"
-        str_version="${GREEN_TEXT}${SCRIPT_VERSION}${RESET}" 
+        str_version="${GREEN_TEXT}${SCRIPT_VERSION}${RESET}"
    else
         str_branch="${MAGENTA_TEXT}${upper_branch}${RESET}"
         str_version="${MAGENTA_TEXT}${SCRIPT_VERSION}${RESET}"
@@ -155,7 +176,7 @@ Show_Logo(){
     White "#  | |  | | (_) | (_| |___) | |_| \__ \ | (_) | (_| | |_| || |   #"
     White "#  |_|  |_|\___/ \____|____/ \___ |___/_|\___/ \__  |\___/|___|  #"
     White "#                            |___/             |___/             #"
-    
+
     # Print the line: Green border/text, then the dynamic branch color, then back to Green for the end border
     printf "${WHITE_TEXT}#      Branch: %-28s ${WHITE_TEXT}Version: %-27s ${WHITE_TEXT}  #\n" "$left" "$right"
 
@@ -166,7 +187,7 @@ Show_Logo(){
 Main_Menu() {
     clear
     Show_Logo
-    
+
     "Cyan" "  (1)  Help                 information on how to use this script"
     "Cyan" "  (2)  Install              install all script files"
     "Cyan" "  (3)  Update               check for script updates"
@@ -180,45 +201,45 @@ Main_Menu() {
     else
         "Cyan" "  (em) Enable modsyslogui   enable dynamic UI filtering"
     fi
-    if [ $(Get_Amtmupdate_State) = true ]; then
+    if [ "$(Get_Amtmupdate_State)" = true ]; then
         "Cyan" "  (da) Disable Amtmupdate   disable amtmupdate auto updates"
-    else 
-        "Cyan" "  (ea) Enable Amtmupdate     enable amtmupdate auto updates"
+    else
+        "Cyan" "  (ea) Enable Amtmupdate    enable amtmupdate auto updates"
     fi
-    if [ "$SCRIPT_BRANCH" = "master" ]; then
+    if [ "$SCRIPT_BRANCH" = "main" ]; then
         "Cyan" "  (sd) Switch develop       switch to development branch (BETA TESTERS ONLY)"
     else
-        "Cyan" "  (sm) Switch master        switch to the master branch (Stable / Production code base)"
+        "Cyan" "  (sm) Switch main          switch to the main branch (Stable / Production code base)"
     fi
     "Cyan" "  (z)  Uninstall            completely remove script"
     "Cyan" "  (e)  Exit                 exit"
-    
+
     printf "\nMake a selection: "
-    read -r input
-    
+    read -r input || exit 0   # v1.4.0 - end of input (no terminal): exit instead of looping forever
+
     case "${input}" in
-        '1') clear; Show_Help ;; 
+        '1') clear; Show_Help ;;
         '2') Install ;;
         '3') Update; exec "$0" ;; # v1.1.0 - re-execute script to show updated ver
         '4') Edit ;;
         'dm') Disable_Filter ;;
         'em') Enable_Filter ;;
         'da'|'ea'|'DA'|'EA') Toggle_Amtmupdate ;; # v1.2.0 - disable or enable amtmupdate auto updates
-        'sm') Switch_Master ;; # v1.3.0 - added github repo branch switching Master and Develop
+        'sm') Switch_Main ;; # v1.3.0 - added github repo branch switching Main and Develop
         'sd') Switch_Develop ;; # v1.3.0 - added github repo branch switching Master and Develop
         'z') Uninstall; Magenta "Thanks for using ${SCRIPT_NAME_DISPLAY} - Bye"; exit ;;
         'e'|'E'|'exit') return ;;
-        *) printf "\n"; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;; 
+        *) printf "\n"; log_msg "Red" "[ERROR] ${input} is not a valid option!" ;;
     esac
     Press_Enter
     Main_Menu
 } # end Main_Menu
 
 Show_Help() {
-    echo -e "${CYAN_TEXT}"
+    printf '%b\n' "${CYAN_TEXT}"
     cat <<EOF
 The default filtering capabilities on the Systme Log page of the router is limited to hardcoded text strings
-in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
+in a file called "logFilter.json". This script adds a capability to edit that file to your likings.
 
 This script also updates the System Log page of the Router UI to include dynamic filtering capabilities for:
    - Include all log records, which is the default function, includes exclusions noted in logFilter.json
@@ -238,28 +259,28 @@ For reference, the following are the default contents of the "logFilter.json" fi
     }
 EOF
 
-echo -e "${RESET}"
+printf '%b\n' "${RESET}"
 } # end Show_Help ()
 
 ##------------------------------------------------------------##
 ## v1.3.0 - added git hub repo switching (master and develop) ##
 ##------------------------------------------------------------##
 Show_ArgsHelp () {
-    echo -e "${YELLOW_TEXT}"
+    printf '%b\n' "${YELLOW_TEXT}"
 
     cat <<EOF
 Rerun the script with no arguments or use one of the following:
-   modsyslogui menu 
-   modsyslogui install"
-   modsyslogui update"
-   modsyslogui disable"
-   modsyslogui enable"
-   modsyslogui uninstall"
-   modsyslogui master"
-   modsyslogui develop"
+   modsyslogui menu
+   modsyslogui install
+   modsyslogui update
+   modsyslogui disable
+   modsyslogui enable
+   modsyslogui uninstall
+   modsyslogui main
+   modsyslogui develop
 EOF
 
-echo -e "${RESET}"
+printf '%b\n' "${RESET}"
 } # end Show_ArgsHelp()
 
 Scriptinfo() {
@@ -270,7 +291,7 @@ Scriptinfo() {
 } # end of Scriptinfo ()
 
 Check_Firmware() {
-    log_msg "Green""   - Checking firmware support"
+    log_msg "Green" "   - Checking firmware support"
     if ! nvram get rc_support | grep -q am_addons; then
         log_msg "Red" "${SCRIPT_NAME_DISPLAY} requires ASUSWRT-Merlin Addon API support, check your installed Merlin version. Installation aborted."
         return 1
@@ -281,44 +302,54 @@ Check_Firmware() {
     fi
 } # end of Check_Firmware()
 
-Download_File() {
-    # Parameter options: $1 = file name to download, $2 = full path + filename to download to
-    # Download file from Github once to a temp location. If the same as the destination file, don't replace.
-    # Otherwise move it from the temp location to the destination.
-    if curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${SCRIPT_REPO}/${1}" -o "/tmp/${1}"; then
-        if [ "$(md5sum "/tmp/${1}" | awk '{print $1}')" != "$(md5sum "${2}" 2>/dev/null | awk '{print $1}')" ]; then
-            mv -f "/tmp/${1}" "${2}"
-            log_msg "Green" "   - Installing $(basename "${1}")"
-        else
-            #log_msg "Yellow" "  File $(basename "${2}") is already up-to-date" #v1.3.0 no longer displaying this msg
-            rm -f "/tmp/${1}" 2>/dev/null
-        fi
-    else
-        log_msg "Red" "   [ERROR] Download of $(basename "${1}") failed. Install aborted, check for Internet performance or DNS issues"
-        exit 5
-    fi
-} # end of Download_File()
-
 Download_Script_Files() {
     # Parameters: None
-    # download ModSyslogUI script
-    Download_File "$(basename "${SCRIPT_INSTALL_PATH}")" "${SCRIPT_INSTALL_PATH}" #ModSyslogUI script
-    chmod 755 ${SCRIPT_INSTALL_PATH} # make script executable
+    # Returns: 0 = all files current, 5 = a download failed (NO files were changed)
+    ##--------------------------------------------------------------------##
+    ## v1.4.0 - developer testing: MODSYSLOGUI_NO_DOWNLOAD=1 keeps the     ##
+    ## files already copied into the addon directory (see deploy.sh)      ##
+    ##--------------------------------------------------------------------##
+    if [ "${MODSYSLOGUI_NO_DOWNLOAD:-0}" = "1" ]; then
+        log_msg "Yellow" "   - MODSYSLOGUI_NO_DOWNLOAD=1, using local files in ${SCRIPT_NAME_DIR}"
+        return 0
+    fi
+    ##--------------------------------------------------------------------##
+    ## v1.4.0 - download ALL files to a staging directory first; only     ##
+    ## when every download succeeds are changed files moved into place,   ##
+    ## so a failed download never leaves a half-updated install.          ##
+    ## (presets.conf is user data and is never downloaded)                ##
+    ##--------------------------------------------------------------------##
+    local stage dst f
+    stage="${TMP_DIR}/${SCRIPT_NAME}.staging"
+    rm -rf "${stage}"
+    mkdir -p "${stage}" "${SCRIPT_NAME_DIR}"
 
-    # download custom asp function file
-    Download_File "$(basename "${CUSTOM_FUNCTION_FILE}")" "${CUSTOM_FUNCTION_FILE}" #UI custom function code
+    set -- "${SCRIPT_INSTALL_PATH}" "${CUSTOM_FUNCTION_FILE}" "${CUSTOM_FILTER_FILE}" "${CUSTOM_UI_FILE}" "${PRESET_MANAGER}"
+    for dst in "$@"; do
+        f="$(basename "${dst}")"
+        if ! curl -fsNL --retry 3 --connect-timeout 10 --max-time 12 "${SCRIPT_REPO}/${f}" -o "${stage}/${f}" || [ ! -s "${stage}/${f}" ]; then
+            log_msg "Red" "   [ERROR] Download of ${f} failed - no files were changed. Check for Internet performance or DNS issues"
+            rm -rf "${stage}"
+            return 5
+        fi
+    done
+    # sanity check: the main script must be a modsyslogui script (not an error page)
+    if ! grep -q "^readonly SCRIPT_NAME=\"${SCRIPT_NAME}\"" "${stage}/${SCRIPT_NAME}"; then
+        log_msg "Red" "   [ERROR] Downloaded ${SCRIPT_NAME} script is not valid - no files were changed"
+        rm -rf "${stage}"
+        return 5
+    fi
 
-    # download custom ui logic file
-    Download_File "$(basename "${CUSTOM_FILTER_FILE}")" "${CUSTOM_FILTER_FILE}" #UI custom filtering code
-
-    # download custom ui PHP file
-    Download_File "$(basename "${CUSTOM_UI_FILE}")" "${CUSTOM_UI_FILE}" #UI custom xml code
-
-    # download preset manager script
-    Download_File "$(basename "${PRESET_MANAGER}")" "${PRESET_MANAGER}" #Preset manager script
-
-    # download sample presets configuration file
-    # Download_File "$(basename "${PRESET_CONF}")" "${PRESET_CONF}" #Preset configuration\list of personalized presets file 
+    for dst in "$@"; do
+        f="$(basename "${dst}")"
+        if [ "$(md5sum "${stage}/${f}" | awk '{print $1}')" != "$(md5sum "${dst}" 2>/dev/null | awk '{print $1}')" ]; then
+            mv -f "${stage}/${f}" "${dst}"
+            log_msg "Green" "   - Installing ${f}"
+        fi
+    done
+    rm -rf "${stage}"
+    chmod 755 "${SCRIPT_INSTALL_PATH}" "${PRESET_MANAGER}" # make scripts executable
+    return 0
 } # end of Download_Script_Files()
 
 Mod_Startup() {
@@ -328,8 +359,8 @@ Mod_Startup() {
             log_msg "Green" "   - Adding ${SCRIPT_NAME} services-start line"
             # check if a services-start file exists and process as follows
 			if [ -f /jffs/scripts/services-start ]; then
-                # delete any existing modsyslogui lines just in case
-                sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
+                # delete any existing modsyslogui lines just in case (v1.4.0 - only lines tagged by this script)
+                sed -i -e '/# added by '"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
                 echo "${SCRIPT_AUTOSTART_CMD} # added by ${SCRIPT_NAME}" >> /jffs/scripts/services-start
 			# a service-start file did not exist, so create one
             else
@@ -341,8 +372,8 @@ Mod_Startup() {
         ;;
         'uninstall')
 			log_msg "Green" "   - Removing ${SCRIPT_NAME} from services-start"
-            # check if services-start line exists and if so, remove any HideUIMenus lines found
-            sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
+            # remove only the lines tagged by this script (v1.4.0)
+            [ -f /jffs/scripts/services-start ] && sed -i -e '/# added by '"${SCRIPT_NAME}"'/d' /jffs/scripts/services-start
         ;;
     esac
 } # end of Mod_Start()
@@ -357,16 +388,16 @@ Auto_Startup() {
     Mod_Syslog_Asp install
 
     # Copy default logFilter.json file
-    if [ ! -f "$CUSTOM_LOGFILTER_PATH" ]; then 
+    if [ ! -f "$CUSTOM_LOGFILTER_PATH" ]; then
         log_msg "Green" "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
         cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
     fi
 
     Mount_Control_Logfilter install
 
-    # Add symlink for presets
-    mkdir /www/user/modsyslogui  # first, need to create directory for symlink to live in
-    ln -sf /jffs/addons/modsyslogui/presets.conf /www/user/modsyslogui/presets.json
+    # Add symlink for presets (v1.4.0 - follow the addon directory instead of a hard-coded path)
+    mkdir -p "${WWW_PRESET_DIR}"  # first, need to create directory for symlink to live in
+    ln -sf "${PRESET_CONF}" "${WWW_PRESET_JSON}"
 
 } # end of Auto_Startup()
 
@@ -377,48 +408,93 @@ Mod_ServiceEvent() {
             log_msg "Green" "   - Adding ${SCRIPT_NAME} service-event line"
             # check if a service-event file exists and process as follows
 			if [ -f /jffs/scripts/service-event ]; then
-                # delete any existing modsyslogui lines just in case
-                sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
+                # delete any existing modsyslogui lines just in case (v1.4.0 - only lines tagged by this script)
+                sed -i -e '/# added by '"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
+                # shellcheck disable=SC2016 # $2 must stay literal for service-event
                 echo '[ "$2" = modsyslogui ] && '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
 			# a service-event file did not exist, so create one
             else
 				echo "#!/bin/sh" > /jffs/scripts/service-event
                 echo " " >> /jffs/scripts/service-event
+                # shellcheck disable=SC2016 # $2 must stay literal for service-event
                 echo '[ "$2" = modsyslogui ] && '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
 				chmod 0755 /jffs/scripts/service-event
 			fi
         ;;
         'uninstall')
 			log_msg "Green" "   - Removing ${SCRIPT_NAME} from service-event"
-            # check if service-event line exists and if so, remove any lines found
-            sed -i -e '/'"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
+            # remove only the lines tagged by this script (v1.4.0)
+            [ -f /jffs/scripts/service-event ] && sed -i -e '/# added by '"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
         ;;
     esac
 } # end of Mod_ServiceEvent()
+
+##-------------------------------------------------------------------------##
+## v1.4.0 - page build safety checks                                       ##
+##   Check_Stock_Asp:  the stock page contains every insertion anchor      ##
+##   Verify_Syslog_Asp: the built page has each custom block, the filter   ##
+##                      and ui blocks exactly once, and no stock handler   ##
+##-------------------------------------------------------------------------##
+Asp_Count() {
+    # $1 = fixed string to count (lines containing it) in the custom asp file
+    grep -cF "$1" "${CUSTOM_SYSLOG_ASP_FILE}" 2>/dev/null || true
+}
+
+Check_Stock_Asp() {
+    local ok=0
+    [ "$(grep -c '^<script>$' "${CUSTOM_SYSLOG_ASP_FILE}")" -ge 1 ] || { log_msg "Red" "   - missing anchor: <script>"; ok=1; }
+    [ "$(Asp_Count 'var logString = htmlEnDeCode')" -eq 1 ] || { log_msg "Red" "   - missing/duplicate anchor: var logString = htmlEnDeCode"; ok=1; }
+    [ "$(Asp_Count 'setTimeout(get_log_data, 3000);')" -ge 1 ] || { log_msg "Red" "   - missing anchor: setTimeout(get_log_data, 3000);"; ok=1; }
+    [ "$(Asp_Count 'success: function(response){')" -eq 1 ] || { log_msg "Red" "   - missing/duplicate anchor: success: function(response){"; ok=1; }
+    [ "$(Asp_Count 'onclick="applySettings();"')" -eq 1 ] || { log_msg "Red" "   - missing/duplicate anchor: applySettings button"; ok=1; }
+    return "$ok"
+}
+
+Verify_Syslog_Asp() {
+    local ok=0
+    [ "$(Asp_Count '//++ Start modsyslogui custom function code')" -ge 1 ] || { log_msg "Red" "   - custom function block not inserted"; ok=1; }
+    [ "$(Asp_Count '//++ Start modsyslogui custom filter code')" -eq 1 ] || { log_msg "Red" "   - custom filter block not inserted exactly once"; ok=1; }
+    [ "$(Asp_Count '<!-- //++ Start modsyslogui custom xml -->')" -eq 1 ] || { log_msg "Red" "   - custom ui block not inserted exactly once"; ok=1; }
+    [ "$(Asp_Count 'var logString = htmlEnDeCode')" -eq 0 ] || { log_msg "Red" "   - stock log handler was not removed"; ok=1; }
+    return "$ok"
+}
 
 Mod_Syslog_Asp() {
     # Parameters: $1 install or uninstall
     case $1 in
         install)
-            # Make sure asp files exists in /tmp
-            if [ ! -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
-                log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
-                cp "${DEFAULT_SYSLOG_ASP_FILE}" "$TMP_DIR/"
+            ##-------------------------------------------------------------------##
+            ## v1.4.0 - always rebuild from a fresh copy of the stock page.      ##
+            ## The old marker cleanup never matched, so a second enable doubled  ##
+            ## the inserted code and stacked a second bind mount.                ##
+            ##-------------------------------------------------------------------##
+            Mod_Syslog_Asp uninstall >/dev/null 2>&1   # unmount (all) + remove any previous custom page
+            log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
+            cp "${DEFAULT_SYSLOG_ASP_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}"
+            # v1.4.0 - make sure the stock page still has the text this script edits around
+            if ! Check_Stock_Asp; then
+                log_msg "Red" "   [ERROR] Stock System Log page is not in the expected format (firmware change?) - filtering NOT enabled"
+                rm -f "${CUSTOM_SYSLOG_ASP_FILE}"
+                return 1
             fi
             log_msg "Green" "   - Adding filtering capabilities to System Log UI page"
-            # check and remove any existing custom code added by this addon
-            sed -i '/\/\/++ Start custom function/,/\/\/++ End custom function/d' ${CUSTOM_SYSLOG_ASP_FILE}
-            sed -i '/\/\/++ Start Custom UI/,/\/\/++ End Custom UI/d' ${CUSTOM_SYSLOG_ASP_FILE}
             # insert custom filtering globals, vars, and helpers
-            sed -i "/^<script>$/r ${CUSTOM_FUNCTION_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
+            sed -i "/^<script>$/r ${CUSTOM_FUNCTION_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}"
             # remove the default log record handling function
-            sed -i '/var logString = htmlEnDeCode/,/setTimeout(get_log_data, 3000);/d' ${CUSTOM_SYSLOG_ASP_FILE}
-            sed -i "/success: function(response){/r ${CUSTOM_FILTER_FILE}" ${CUSTOM_SYSLOG_ASP_FILE}
+            sed -i '/var logString = htmlEnDeCode/,/setTimeout(get_log_data, 3000);/d' "${CUSTOM_SYSLOG_ASP_FILE}"
+            sed -i "/success: function(response){/r ${CUSTOM_FILTER_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}"
 
-            # insert custom ui xml codeing 
+            # insert custom ui xml codeing
             sed -i "/onclick=\"applySettings();\"/r ${CUSTOM_UI_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}" #v1.0.1 changed insertion point
+
+            # v1.4.0 - never mount a broken page (e.g. a firmware update changed the stock page)
+            if ! Verify_Syslog_Asp; then
+                log_msg "Red" "   [ERROR] Customized System Log page failed validation - stock page left in place"
+                rm -f "${CUSTOM_SYSLOG_ASP_FILE}"
+                return 1
+            fi
             # mount the customized web page with filtering capabilities added
-            mount -o bind ${CUSTOM_SYSLOG_ASP_FILE} ${DEFAULT_SYSLOG_ASP_FILE}
+            mount -o bind "${CUSTOM_SYSLOG_ASP_FILE}" "${DEFAULT_SYSLOG_ASP_FILE}"
         ;;
         uninstall)
             log_msg "Green" "   - Removing filtering capabilities from System Log UI page"
@@ -443,7 +519,7 @@ Mount_Control_Logfilter () {
     case $1 in
         install)
             log_msg "Green" "   - Mounting logFilter.json"
-            mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
+            mount -o bind "${CUSTOM_LOGFILTER_PATH}" "${DEFAULT_LOGFILTER_PATH}"
         ;;
         uninstall)
             log_msg "Green" "   - Removing customized logFilter.json"
@@ -490,7 +566,7 @@ Setup_Aliases() {
                         sed -i -e '/# '"${SCRIPT_NAME}"'/d' /jffs/configs/profile.add
                     fi
                 fi
-            fi  
+            fi
         ;;
     esac
 } #  end of Setup_Aliases()
@@ -515,7 +591,7 @@ Custom_Settings(){
             else
 				am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
 			fi
-        ;; 
+        ;;
         uninstall)
             log_msg "Green" "   - Deleting ${SCRIPT_NAME_DISPLAY} cusotom_settings.txt name space"
             # check if any previous name space entries exist and remove them
@@ -534,12 +610,11 @@ Install() {
     # Parameter options: None
     # Install script and download webui file
     # This is also called by the update process once a new script is downloaded by update() function
-    clear
+    [ "$mode" = "interactive" ] && clear   # v1.4.0
     Scriptinfo
 
     log_msg "Green" "Installing ${SCRIPT_NAME_DISPLAY}"
-    # shellcheck disable=SC2078
-    if [ ! Check_Firmware ]; then
+    if ! Check_Firmware; then   # v1.4.0 - fixed: test was always false, so the check never ran
         log_msg "Red" "[ERROR] Addons are not supported in this routers firmware - script aborting!!!"
         Press_Enter
         rm -f "${0}" 2>/dev/null
@@ -562,18 +637,18 @@ Install() {
         if [ "${yn}" = "n" ] || [ "${yn}" = "N" ]; then
             log_msg "Cyan" "   - No Changes have been made"
             return 0
-        else 
+        else
             ##----------------------------------------------------------------------##
             ## v1.0.2 unmount customized System Log Page asp and logFilter.json     ##
             ## added to avoid double mounting in case install is run more than once ##
             ##----------------------------------------------------------------------##
-            Mod_Syslog_Asp uninstall 
+            Mod_Syslog_Asp uninstall
             Mount_Control_Logfilter uninstall
         fi
     fi
 
     # Download all custom script files
-    Download_Script_Files
+    Download_Script_Files || exit 5   # v1.4.0 - all-or-nothing download; abort install on failure
 
     ##---------------------------------------------------------------------------------------------------------------##
     ## v1.0.2 added check if Main_LogStatus_Content.asp exists for this script, since install can run more than once ##
@@ -581,7 +656,7 @@ Install() {
     if [ -f ${CUSTOM_SYSLOG_ASP_FILE} ]; then
         # remove existing customize asp file if exists
         log_msg "Green" "   - Deleting existing customized System Log page customizations"
-        rm ${CUSTOM_SYSLOG_ASP_FILE} 
+        rm ${CUSTOM_SYSLOG_ASP_FILE}
     fi
 
     # Copy default System Log ASP file to scripts addon directory
@@ -595,8 +670,8 @@ Install() {
     ## v1.0.2 added check if custom logFilter.json exists, so we don't overwrite existing customizations ##
     ## added this in case the install function is run more than once                                     ##
     ##---------------------------------------------------------------------------------------------------##
-    if [ ! -f ${CUSTOM_LOGFILTER_PATH} ]; then
-        # copy over the system's default logFilter.json file 
+    if [ ! -f "${CUSTOM_LOGFILTER_PATH}" ]; then
+        # copy over the system's default logFilter.json file
         #+ the defaults are fine, but copying over in case user wants to customize
         log_msg "Green" "   - Copying Asus's default system log filtering file, in case user wants to customize defaults"
         cp "${DEFAULT_LOGFILTER_PATH}" "${SCRIPT_NAME_DIR}/"
@@ -609,12 +684,12 @@ Install() {
 
     # add autostart_modsyslogui script to services-start, so the customized filtering is installed on router reboot
     Mod_Startup install
-    
+
     # add alias command for invoking script
     Setup_Aliases install
 
     # create Asuswrt third party addon name space with version information
-    Custom_Settings installl
+    Custom_Settings install
 
     ##---------------------------------------------------##
     ## v1.1.0 add preset_manager.sh to service-event     ##
@@ -626,15 +701,13 @@ Install() {
     ##-------------------------------------##
     ## v1.1.0 add symlink for presets.conf ##
     ##-------------------------------------##
-    if [ ! -L ${WWW_PRESET_JSON} ]; then
-		mkdir ${WWW_PRESET_DIR}  # first, need to create directory for symlink to live in
-    	ln -sf ${PRESET_CONF} ${WWW_PRESET_JSON}
-	fi
+    mkdir -p "${WWW_PRESET_DIR}"  # first, need to create directory for symlink to live in
+    ln -sf "${PRESET_CONF}" "${WWW_PRESET_JSON}"   # v1.4.0 - always relink, addon directory may have changed
 
     ##-------------------------------------------##
     ## v1.1.0 make preset_manager.sh executeable ##
     ##-------------------------------------------##
-    chmod +x ${PRESET_MANAGER}
+    chmod +x "${PRESET_MANAGER}"
 
     # Install complete messages
     log_msg "Green" "${SCRIPT_NAME_DISPLAY} installation complete!"
@@ -645,7 +718,7 @@ Install() {
 } # end of Install()
 
 Uninstall() {
-    log_msg "Green" "Uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+    log_msg "Green" "Uninstalling the ${SCRIPT_NAME_DISPLAY} script"
 
     # Remove the addons startup line in services-start
     Mod_Startup uninstall
@@ -680,23 +753,26 @@ Uninstall() {
 
     # Remove the scripts addon directory
     log_msg "Green" "   - Removing the scripts addon directory"
-	cd "${TMP_DIR}"
-    rm -rf ${SCRIPT_NAME_DIR}
+	cd "${TMP_DIR}" || return 1
+    case "${SCRIPT_NAME_DIR}" in   # v1.4.0 - guard: only ever remove one of the two known addon directories
+        "${ADDON_DIR}/${SCRIPT_NAME}"|"${ADDON_DIR}/test/${SCRIPT_NAME}") rm -rf "${SCRIPT_NAME_DIR}" ;;
+        *) log_msg "Red" "   [ERROR] Refusing to remove unexpected directory: ${SCRIPT_NAME_DIR}" ;;
+    esac
 
     # output completion message
-    log_msg "Green" "Completed uninstalling the ${SCRIPT_DISPLAY_NAME} script"
+    log_msg "Green" "Completed uninstalling the ${SCRIPT_NAME_DISPLAY} script"
 } # end of Uninstall()
 
-Update() {    
+Update() {
     # Parameter options
     # None - check for updates and present choice to force if no updates, then re-execute script after update and show menu
     # $1 = amtmupdate, running from amtm update, skip version check,minimize console output, then re-execute script then exit (postamtmupdate)
-    # $1 = master or develop, executing a branch switch, skip version check, then re-execute script and show menu
+    # $1 = main or develop, executing a branch switch, skip version check, then re-execute script and show menu
     local switch_branch
-    switch_branch="" 
-    [ "$1" = "master" ] && switch_branch="master"
+    switch_branch=""
+    [ "$1" = "main" ] && switch_branch="main"
     [ "$1" = "develop" ] && switch_branch="develop"
-   
+
     # if called without any parameters, check if any updates available
     if [ ! "$1" = "amtmupdate" ]; then # if running via amtmupdate, skip version checking - already done
         # Check for, and optionally apply updates.
@@ -706,10 +782,13 @@ Update() {
         log_msg "Green" "Checking for updates"
         # Update the webui status thorugh detect_update.js ajax call.
         # Get the version of the script on Github
-        localver="$(grep "SCRIPT_VERSION=" ${SCRIPT_INSTALL_PATH} | grep -m1 -oE "${scriptVersRegExp}")"
+        localver="$(grep "SCRIPT_VERSION=" "${SCRIPT_INSTALL_PATH}" | grep -m1 -oE "${scriptVersRegExp}")"
         remotever="$(curl -fsL --retry 4 --retry-delay 5 "${SCRIPT_REPO}/${SCRIPT_NAME}" | grep "SCRIPT_VERSION=" | grep -m1 -oE "${scriptVersRegExp}")"
         # Compare local and remote versions to see how to proceed
-        if [ "${localver}" != "${remotever}" ]; then
+        if [ -z "${remotever}" ]; then
+            # v1.4.0 - GitHub unreachable / bad response was previously reported as "Update available"
+            updatestatus="Error"
+        elif [ "${localver}" != "${remotever}" ]; then
             # version upgrade
             updatestatus="Update"
         else
@@ -727,9 +806,8 @@ Update() {
             printf " Would you like to update now? [y=Yes n=No]: "
             ;;
         *)
-            log_msg "Red" "   - Error occured checking version information"
-            Press_Enter
-            return
+            log_msg "Red" "   - Error occured checking version information (unable to reach GitHub?) - no changes made"
+            return 1
             ;;
         esac
         read -r yn
@@ -740,20 +818,24 @@ Update() {
         fi
     fi
 
-	Mod_Syslog_Asp uninstall   # Disable - Remove filtering mod from System Log UI
-    Download_Script_Files      # Download all associated files
-    Mod_Syslog_Asp install     # Re-Enable - Add filtering mod back to System Lot UI
+    # v1.4.0 - download first (all or nothing); the page is only rebuilt after a successful download.
+    #+ Mod_Syslog_Asp install rebuilds from a fresh stock page, so no separate uninstall is needed.
+    if ! Download_Script_Files; then
+        log_msg "Red" "   - Update aborted, existing installation left unchanged"
+        return 1
+    fi
+    Mod_Syslog_Asp install     # Rebuild and mount the System Log UI page with the new files
 
     # if Update was called from amtmupdate, then re-execute the script then immediately run post ampduate logic check
-    if $AMTMUPDATE_RUN_FLAG; then 
+    if $AMTMUPDATE_RUN_FLAG; then
         exec "$0" postamtmupdate    # rexecute the script, to run the logic flow check then exist immediately and return cleanly to amtm
     fi
-    
+
     ##------------------------------------------------------------##
     ## v1.3.0 - added git hub repo switching (master and develop) ##
     ##------------------------------------------------------------##
-    if [ "$switch_branch" = "master" ]; then
-        log_msg "Green" "Completed switch to the stable (master) branch"
+    if [ "$switch_branch" = "main" ]; then
+        log_msg "Green" "Completed switch to the stable (main) branch"
         Press_Enter
         exec "$0"
     elif [ "$switch_branch" = "develop" ]; then
@@ -788,25 +870,25 @@ Update_FromAMTM() {
 
 Edit () {
     # Parameters - none
-    local before_hash 
-    local after_hash 
+    local before_hash
+    local after_hash
 
-    # Get the hash of the hidemenus list file BEFORE editing
-    before_hash=$(sha256sum "${CUSTOM_LOGFILTER_PATH}" | awk '{ print $1 }')
-
-    # Make sure the custom logFilter file exists, if not, copy it over
+    # Make sure the custom logFilter file exists, if not, copy it over (v1.4.0 - moved before hashing)
     if [ ! -f "${CUSTOM_LOGFILTER_PATH}" ]; then
-        cp ${DEFAULT_LOGFILTER_PATH} ${CUSTOM_LOGFILTER_PATH}
+        cp "${DEFAULT_LOGFILTER_PATH}" "${CUSTOM_LOGFILTER_PATH}"
     fi
 
-    nano ${CUSTOM_LOGFILTER_PATH}
+    # Get the hash of the logFilter.json file BEFORE editing
+    before_hash=$(sha256sum "${CUSTOM_LOGFILTER_PATH}" | awk '{ print $1 }')
+
+    nano "${CUSTOM_LOGFILTER_PATH}"
 
     # Get the hash of the hidemenus list file AFTER editing
-    after_hash=$(sha256sum "${CUSTOM_LOGFILTER_PATH}" | awk '{ print $1 }') 
+    after_hash=$(sha256sum "${CUSTOM_LOGFILTER_PATH}" | awk '{ print $1 }')
 
     # Check for any changes
     if [ ! "${before_hash}" = "${after_hash}" ]; then
-        mount -o bind ${CUSTOM_LOGFILTER_PATH} ${DEFAULT_LOGFILTER_PATH}
+        mount -o bind "${CUSTOM_LOGFILTER_PATH}" "${DEFAULT_LOGFILTER_PATH}"
         log_msg "Yellow" "Your changes have been saved to ${CUSTOM_LOGFILTER_PATH} and applied to the System"
     else
         log_msg "Yellow" "No changes were made to the ${CUSTOM_LOGFILTER_PATH}"
@@ -835,7 +917,7 @@ Get_Amtmupdate_State() {
 # v1.2.0 added amtmupdate disable / enable functionality ##
 ##-------------------------------------------------------##
 Toggle_Amtmupdate() {
-    if [ $(Get_Amtmupdate_State) = true ]; then
+    if [ "$(Get_Amtmupdate_State)" = true ]; then
         echo "false" > "$AMTMUPDATE_STATE_FILE"
         log_msg "Green" "Amtmupdate automatic updates disabled"
     else
@@ -846,19 +928,19 @@ Toggle_Amtmupdate() {
 
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
 ## Script Mainline
-clear
 
 # Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
 if tty >/dev/null 2>&1; then
     mode="interactive"
+    clear   # v1.4.0 - only clear the screen for interactive sessions
 else
     mode="unattended"
 fi
 
-# check to make sure only one argument passed, exit otherwise
+# check to make sure no more than two arguments passed (e.g. "amtmupdate check"), exit otherwise
 if [ $# -gt 2 ]; then
     log_msg "Red" "Too many arguments ($#) passed to this script!"
-    if [ $mode = "interactive"]; then
+    if [ "$mode" = "interactive" ]; then
         printf "\n"
         Show_ArgsHelp
     fi
@@ -868,7 +950,7 @@ fi
 ##-------------------------------------##
 ## v1.0.1 added firmware version check ##
 ##-------------------------------------##
-# Exit if not running a supported firmware version 
+# Exit if not running a supported firmware version
 if ! ${SUPPORTED_FIRMWARE_VERSION}; then
     log_msg "Red" "Firmware version ${fwInstalledBranchVer} not suppoted - exiting script"
     exit 5
@@ -885,9 +967,10 @@ if [ ! -f "$CURRENT_FLOW_FILE" ]; then
     # code in this section can / will be changed depending on current logic flow needs
 
     # remove legacy (pre v1.2.0) files
-    rm "${SCRIPT_NAME_DIR}/autostart_modsyslogui"
-    rm "${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
-    sed -i 's/autostart_modsyslogui/autostartup/' /jffs/scripts/services-start
+    rm -f "${SCRIPT_NAME_DIR}/autostart_modsyslogui"
+    rm -f "${SCRIPT_NAME_DIR}/Main_LogStatus_Content.asp"
+    # v1.4.0 - only touch lines tagged by this script; never from the /tmp scratch dir
+    ! $SCRATCH_RUN && [ -f /jffs/scripts/services-start ] && sed -i '/# added by '"${SCRIPT_NAME}"'/s/autostart_modsyslogui/autostartup/' /jffs/scripts/services-start
 
     rm -f "$LAST_FLOW_FILE" 2>/dev/null    #remove that last flow version file
     touch "$CURRENT_FLOW_FILE"
@@ -900,15 +983,16 @@ if [ ! -f "$AMTMUPDATE_STATE_FILE" ] || ! grep -qwE "true|false" "$AMTMUPDATE_ST
   echo "true" > "$AMTMUPDATE_STATE_FILE"
 fi
 
-# Make sure the version in custom_settings.txt matches the version of this script
-if [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ]; then
+# Make sure the version in custom_settings.txt matches the version of this script (v1.4.0 - skipped for /tmp scratch runs)
+if ! $SCRATCH_RUN && [ "$(am_settings_get "${SCRIPT_NAME_DISPLAY}"_ver)" != "${SCRIPT_VERSION}" ]; then
 	am_settings_set "${SCRIPT_NAME_DISPLAY}"_ver "${SCRIPT_VERSION}"
 fi
 
 # Check and process the argument passed when calling this script
 case "${1}" in
     'menu'|'') Main_Menu ;;
-    'install') Install; Press_Enter; Main_Menu ;; #v1.0.2 - added Press_Enter and Main_Menu to avoid exiting script
+    'install') Install || exit "$?"   #v1.0.2 - added Press_Enter and Main_Menu to avoid exiting script
+               if [ "$mode" = "interactive" ]; then Press_Enter; Main_Menu; fi ;; #v1.4.0 - no menu without a terminal
     'update') Update ;;
     'disable') Disable_Filter ;;
     'enable') Enable_Filter ;;
@@ -919,7 +1003,7 @@ case "${1}" in
     ##------------------------------------------------------------##
     ## v1.3.0 - added git hub repo switching (master and develop) ##
     ##------------------------------------------------------------##
-    'develop') Switch_Develop ;; # v1.3.- added GitHub repo switch capability Master or Develop
-	'master') Switch_Master ;; # v1.3.- added GitHub repo switch capability Master or Develop
+    'develop') Switch_Develop ;; # v1.3.0 - added GitHub repo switch capability Main or Develop
+	'main'|'master') Switch_Main ;; # v1.4.0 - master renamed to main ('master' kept for backward compatibility)
     *) log_msg "Red" "${1} is an unknown argument"; exit 1 ;;
 esac
