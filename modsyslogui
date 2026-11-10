@@ -105,8 +105,8 @@ esac
 ##---------------------------------##
 readonly AMTMUPDATE_STATE_FILE="${SCRIPT_NAME_DIR}/amtmupdate.state"
 AMTMUPDATE_RUN_FLAG=false   # set to true only if update function initiated by amtmupdate
-readonly CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be created
-readonly LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v0" # set current logic flow version file to be deleted
+readonly CURRENT_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.1" # set current logic flow version file to be created (v1.4.0 - v1.1)
+readonly LAST_FLOW_FILE="${SCRIPT_NAME_DIR}/.logic_v1.0" # set current logic flow version file to be deleted (v1.4.0 - v1.0)
 ### End of Script Variables
 
 Red() { printf -- '\033[1;31m%s\033[0m\n' "${1}"; }
@@ -411,13 +411,13 @@ Mod_ServiceEvent() {
                 # delete any existing modsyslogui lines just in case (v1.4.0 - only lines tagged by this script)
                 sed -i -e '/# added by '"${SCRIPT_NAME}"'/d' /jffs/scripts/service-event
                 # shellcheck disable=SC2016 # $2 must stay literal for service-event
-                echo '[ "$2" = modsyslogui ] && '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
+                echo '[ "$2" = modsyslogui ] && sh '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
 			# a service-event file did not exist, so create one
             else
 				echo "#!/bin/sh" > /jffs/scripts/service-event
                 echo " " >> /jffs/scripts/service-event
                 # shellcheck disable=SC2016 # $2 must stay literal for service-event
-                echo '[ "$2" = modsyslogui ] && '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
+                echo '[ "$2" = modsyslogui ] && sh '"${PRESET_MANAGER}"' & # added by '"${SCRIPT_NAME}" >> /jffs/scripts/service-event
 				chmod 0755 /jffs/scripts/service-event
 			fi
         ;;
@@ -972,8 +972,28 @@ if [ ! -f "$CURRENT_FLOW_FILE" ]; then
     # v1.4.0 - only touch lines tagged by this script; never from the /tmp scratch dir
     ! $SCRATCH_RUN && [ -f /jffs/scripts/services-start ] && sed -i '/# added by '"${SCRIPT_NAME}"'/s/autostart_modsyslogui/autostartup/' /jffs/scripts/services-start
 
+    ##-----------------------------------------------------------------------##
+    ## v1.4.0 (logic flow v1.1) - run preset_manager.sh via "sh", so presets ##
+    ## keep working even if the file loses its execute permission (updates   ##
+    ## from v1.3.0 and earlier did not chmod it). Rewrites only our tagged   ##
+    ## line, in place, keeping whatever path it already has.                 ##
+    ##-----------------------------------------------------------------------##
+    if ! $SCRATCH_RUN && [ -f /jffs/scripts/service-event ]; then
+        sed -i '/# added by '"${SCRIPT_NAME}"'/{/ \&\& sh /!s/ \&\& / \&\& sh /}' /jffs/scripts/service-event
+    fi
+
     rm -f "$LAST_FLOW_FILE" 2>/dev/null    #remove that last flow version file
     touch "$CURRENT_FLOW_FILE"
+fi
+
+##-----------------------------------------------------------------------##
+## v1.4.0 - self-repair: updates from v1.3.0 and earlier left a replaced ##
+## preset_manager.sh without execute permission (presets save/edit then  ##
+## silently failed). Runs on every start, including right after a v1.3.0 ##
+## updater re-executes this script.                                      ##
+##-----------------------------------------------------------------------##
+if [ -f "$PRESET_MANAGER" ] && [ ! -x "$PRESET_MANAGER" ]; then
+    chmod 755 "$PRESET_MANAGER" && log_msg "Yellow" "   - Repaired missing execute permission on $(basename "$PRESET_MANAGER")"
 fi
 
 ##-------------------------------------------------------------------------------------------##

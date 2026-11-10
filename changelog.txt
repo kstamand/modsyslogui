@@ -15,6 +15,8 @@ v1.4.0 (11-Nov-2026)
   - Fixed:   Script - branch switch back to stable branch (typo); branch renamed master -> main ('master' argument still accepted)
   - Fixed:   Script - install without a terminal no longer loops in the menu; screen only cleared in interactive sessions
   - Fixed:   Script - misc. (custom_settings version not saved on install, undefined name in uninstall messages, syntax error in argument check, echo -e)
+  - Fixed:   Presets - Save / Edit silently failed after updating from v1.3.0 (updater left preset_manager.sh without execute permission); repaired automatically on start
+  - Updated: Script - service-event now runs preset_manager.sh via "sh" (existing line migrated once), so file permissions can no longer break presets
   - Updated: Script - only lines tagged "# added by modsyslogui" are changed in services-start / service-event
   - Updated: Script - addon directory follows the script location (supports a separate test install)
   - Updated: README - Export, Match case, branch (main / develop) instructions, corrected menu option and debugging info
