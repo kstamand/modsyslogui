@@ -1,15 +1,15 @@
 # ModSyslogUI - Customize router's "System Log" page with custom filtering capabilities
 ## About:
 The default filtering capabilities of what is <ins>displayed</ins> on the System Log page of the router is limited to hardcoded text strings
-in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
+in a file called "logFilter.json". This script adds a capability to edit that file to your likings.
 
 This script also updates the System Log page of the Router UI to include dynamic filtering capabilities to:
-   - Include all log records, which is the default function, including exclusions noted in logFilter.json  
-   - Include only log records containing the string or strings of text you chose (separate each by a comma)  
-     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)  
-   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)  
+   - Include all log records, which is the default function, including exclusions noted in logFilter.json
+   - Include only log records containing the string or strings of text you chose (separate each by a comma)<br>
+     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)
+   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)<br>
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
-   - Use simple logical operators AND or OR or AND NOT to filter the log records to display  
+   - Use simple logical operators AND or OR or AND NOT to filter the log records to display<br>
      Example - only show kernel error msgs (e.g., Jan  8 00:02:32 kernel: WLC_SCB_DEAUTHORIZE error (-30), enter kernel AND error
    - Filter for a tag, combined with a simple logical (term AND term)
      Example - find all kernel: tags with an ethernet port down, enter kernel: eth AND Down
@@ -20,7 +20,7 @@ This script also updates the System Log page of the Router UI to include dynamic
 This script supports Asuswrt-Merlin firmware 3004.388.* and 3006.102.* and associated routers.
 
 *This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
-Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*  
+Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*
 
 __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOOSE ONE OR THE OTHER__
 
@@ -29,7 +29,7 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 - The script provides an interactive manu of options to perform various script maintenance functions
 - Custom System Log filtering capabilities added with this script include:
 	1. Hardcoded Filtering - By default, the System Log page filters log records to display based on the contents of a "logFilter.json" file. This script includes an EDIT option that allows you to customize to your liking.
- 	2. Dynamic Filtering - The System Log page is modifed to allow you to interactively seltect which log records to INCLUDE or EXCLUDE, with the default action of filtering records based on the contents of the logFilter.json file 
+ 	2. Dynamic Filtering - The System Log page is modifed to allow you to interactively seltect which log records to INCLUDE or EXCLUDE, with the default action of filtering records based on the contents of the logFilter.json file
 
 *Hardcoded Filtering changes are made from an SSH session to the router, and choosing option 4 (Edit) from the modsyslogui menu*
 
@@ -40,7 +40,7 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 SSH to the router and enter:
 
 ```Shell
-/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/main/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
+/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/develop/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
 ```
 
 ### Beta testing (develop branch)
@@ -49,7 +49,7 @@ SSH to the router and enter:
 Once installed, switch to the develop branch with menu option **(sd)** or `modsyslogui develop`. Switch back to the stable release at any time with menu option **(sm)** or `modsyslogui main`.
 
 ## Configuration:
-*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 4 (Edit) from the modsyslogui menu.* 
+*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 4 (Edit) from the modsyslogui menu.*
 
 The default contents of the logFilter.json file are:
 
@@ -87,11 +87,11 @@ ALL System log records, generally start with a date and a tag. Examples;
   - wireless events (wlcevented)
   - ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
   - specific tags /addon script names (e.g., log records starting with modsyslogui)
-	 
+
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
-<img width="642" height="453" alt="image" src="https://github.com/user-attachments/assets/3904ff9c-d1dd-4927-a54b-8d9ff2796222" />
+<img width="642" alt="modsyslogui menu" src="images/menu.png" />
 
 
 To skip displaying the menu, you can run select options directly by running **modsyslogui** with one of the following parameters;
@@ -117,7 +117,7 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 
 While Auto refresh is on, the log only jumps to the newest records if you are already at the bottom, so you can scroll up and read older records without being interrupted.
 
-<img width="777" height="772" alt="image" src="https://github.com/user-attachments/assets/64f8cec2-ab94-48ed-b3b9-1a6b1c767722" />
+<img width="777" alt="System Log page with ModSyslogUI filtering" src="images/syslog.png" />
 
 
 ## Support

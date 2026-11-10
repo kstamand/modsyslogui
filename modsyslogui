@@ -37,7 +37,7 @@ readonly ADDON_DIR="/jffs/addons"
 ## v1.4.0 - addon directory follows where the script runs from:         ##
 ##   /jffs/addons/modsyslogui (production) or                           ##
 ##   /jffs/addons/test/modsyslogui (test) or                            ##
-##   /tmp/modsyslogui (developer scratch, see deploy.sh).               ##
+##   /tmp/modsyslogui-dev (developer scratch, see deploy.sh).           ##
 ##   Anywhere else (e.g. /tmp/modsyslogui as a file, for a fresh        ##
 ##   install) defaults to production, unless MODSYSLOGUI_DIR is set to  ##
 ##   one of the allowed directories.                                    ##
@@ -47,7 +47,7 @@ Resolve_Addon_Dir() {
     self_dir="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
     want="${MODSYSLOGUI_DIR:-$self_dir}"
     case "$want" in
-        "${ADDON_DIR}/${SCRIPT_NAME}"|"${ADDON_DIR}/test/${SCRIPT_NAME}"|"/tmp/${SCRIPT_NAME}") printf '%s' "$want" ;;
+        "${ADDON_DIR}/${SCRIPT_NAME}"|"${ADDON_DIR}/test/${SCRIPT_NAME}"|"/tmp/${SCRIPT_NAME}-dev") printf '%s' "$want" ;;
         *) printf '%s' "${ADDON_DIR}/${SCRIPT_NAME}" ;;
     esac
 }
@@ -66,8 +66,8 @@ readonly CUSTOM_UI_FILE="${SCRIPT_NAME_DIR}/customui.xml"
 readonly LOGFILTER_MP="/www/ajax/logFilter.json"
 readonly SYSLOGPAGE_MP="/www/Main_LogStatus_Content.asp"
 readonly LOG_TAG="$SCRIPT_NAME"
-# v1.4.0 - developer scratch run from /tmp/modsyslogui (deploy.sh): no persistent writes outside /tmp
-if [ "$SCRIPT_NAME_DIR" = "/tmp/${SCRIPT_NAME}" ]; then SCRATCH_RUN=true; else SCRATCH_RUN=false; fi
+# v1.4.0 - developer scratch run from /tmp/modsyslogui-dev (deploy.sh): no persistent writes outside /tmp
+if [ "$SCRIPT_NAME_DIR" = "/tmp/${SCRIPT_NAME}-dev" ]; then SCRATCH_RUN=true; else SCRATCH_RUN=false; fi
 readonly SCRATCH_RUN
 
 ##---------------------------------------------------------##
