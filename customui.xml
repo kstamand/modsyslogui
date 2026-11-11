@@ -2,6 +2,12 @@
 <script>
     /* Official Merlin API: Fetch existing settings object */
     var custom_settings = <% get_custom_settings(); %>;
+    /* v1.4.0 - router identity for the Export file header */
+    var msui_router = {
+        model:   "<% nvram_get("productid"); %>",
+        firmver: "<% nvram_get("firmver"); %>",
+        buildno: "<% nvram_get("buildno"); %>"
+    };
 </script>
 
 <style>
@@ -18,6 +24,9 @@
     .modal-content input[type="text"], .modal-content select { width: 100%; background: #000; color: #FFF; border: 1px solid #555; padding: 6px; box-sizing: border-box; }
     .collapsed { display: none !important; }
     .modal-btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    /* v1.4.0 - compact preset-row buttons (override stock button_gen min-width) so Export fits on the same line */
+    .preset-row { flex-wrap: nowrap; }
+    .preset-row .preset-btn { min-width: 0 !important; width: auto !important; padding: 2px 12px !important; }
 </style>
 
 <iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
@@ -36,6 +45,8 @@
             <span><input type="radio" id="Include" name="filter_options" onclick="debounceFilter()"><label for="Include"> Include</label></span>
             <span><input type="radio" id="Exclude" name="filter_options" onclick="debounceFilter()"><label for="Exclude"> Exclude</label></span>
             <span><input type="radio" id="Logical" name="filter_options" onclick="debounceFilter()"><label for="Logical"> Logical</label></span>
+            <!-- v1.4.0 - case-sensitive matching (default on, same as previous versions) -->
+            <span style="margin-left: 20px;" title="Uncheck to ignore upper/lower case in filter terms (operators AND, OR, AND NOT stay uppercase)"><input type="checkbox" id="match_case" checked onclick="debounceFilter()"><label for="match_case"> Match case</label></span>
         </div>
         <div class="filter-row">
             <input type="text" id="filter_text" onkeyup="debounceFilter()" placeholder="e.g. eth1, kernel, drop AND accept" autocomplete="off">
@@ -44,21 +55,31 @@
         <div class="help-link" onclick="document.getElementById('help_content').classList.toggle('collapsed')">&#9662; Show Help & Examples</div>
         <div id="help_content" class="help-content collapsed">
             • <strong>Show-All:</strong> is the default filter, unless you have a Preset set as the default (<span style="color: #007BFF;">Load automatically</span>).<br>
-            • <strong>Include/Exclude:</strong> Use comma separated terms (e.g. kernel, eth0). Matches any log record containing one of those terms<br>
-            • <strong>Logical:</strong> Use <strong>AND | OR | AND NOT</strong> (Uppercase Only). (e.g., Get AND error)<br>
-                <span style="color: #28A745;">Enhanced Logical filtering also supported, based on TAGS (e.g., kernel: bcm AND Error)</span><br> 
+            • <strong>Include/Exclude:</strong> Use comma separated terms (e.g. kernel, eth0). Matches any log record containing one of those terms (<strong>commas = ANY</strong> of these)<br>
+            • <strong>Logical:</strong> Use ONE of <strong>AND | OR | AND NOT</strong> (Uppercase Only). (e.g., Get AND error)<br>
+                <span style="color: #28A745;">Each side may have several words: <strong>spaces = ALL</strong> of these words (e.g. kernel: Tuxera AND HFS+ = has kernel: and Tuxera, and has HFS+)</span><br>
+            • <strong>Tags (Scribe-style views):</strong> A word ending in <strong>:</strong> is a tag and matches only the program name after the timestamp, or the sub-tag right after it ([pid] ignored).<br>
+                <span style="color: #28A745;">Examples: Include <strong>kernel:</strong> (all kernel records) | Include <strong>dnsmasq:, dnsmasq-dhcp:</strong> | Logical <strong>kernel: eth AND Down</strong> | Logical <strong>kernel: AND NOT eth7:</strong></span><br>
+                <span style="color: #28A745;">Tags apply to Include/Exclude terms that are only a tag, and to the first word of each side of a Logical filter. Leave off the : to match the text anywhere (e.g. eth7).</span><br>
+                <span style="color: #28A745;">Save each view as a Preset to reuse it like a Scribe log tab; mark one Load automatically to make it your default view.</span><br>
+            • <strong>Match case:</strong> Checked (default) matches upper/lower case exactly. Uncheck to ignore case (e.g. error also matches ERROR and Error). Logical operators must still be UPPERCASE.<br>
             • <strong>Presets:</strong> Allows you to SAVE | EDIT | DELETE a <strong>Personalized (<span style="color: #007BFF;">Initially Blank</span>)</strong> list of your favorite filters.<br>
                 <span style="color: #28A745;">To Create a Preset - Select a filter button, then enter desired filter text.</span><br>
-                <span style="color: #28A745;">Once you are happy with the filter results, hit the Preset SAVE button and fill in form (Description and Load Automatically are optional)</span>
+                <span style="color: #28A745;">Once you are happy with the filter results, hit the Preset SAVE button and fill in form (Description and Load Automatically are optional)</span><br>
+            • <strong>Export:</strong> Saves the log lines currently displayed (with the active filter applied) to a text file, via your browser's normal download.<br>
+                <span style="color: #28A745;">The file starts with a short header (router, time, filter used). The stock Save button below still saves the full, unfiltered log.</span><br>
+                <span style="color: #28A745;">To choose where the file is saved, set your browser to ask for a download location (e.g. Safari: Settings &gt; General &gt; File download location &gt; Ask for each download).</span>
         </div>
-        <div class="filter-row" style="margin-top: 12px; border-top: 1px solid #444; padding-top: 12px;">
+        <div class="filter-row preset-row" style="margin-top: 12px; border-top: 1px solid #444; padding-top: 12px;">
             <span style="color: #FFF; font-size: 12px;">Presets:</span>
             <select id="preset_select" class="input_option" style="width: 170px; height: 26px;" onchange="applyPresetSelection(this.value)">
                 <option value="">-- Select Preset --</option>
             </select>
-            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="openPresetModal('save')" value="Save">
-            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="openPresetModal('edit')" value="Edit">
-            <input type="button" class="button_gen" style="padding: 2px 10px;" onclick="handlePresetAction('delete')" value="Delete">
+            <input type="button" class="button_gen preset-btn" onclick="openPresetModal('save')" value="Save">
+            <input type="button" class="button_gen preset-btn" onclick="openPresetModal('edit')" value="Edit">
+            <input type="button" class="button_gen preset-btn" onclick="handlePresetAction('delete')" value="Delete">
+            <!-- v1.4.0 - export the currently displayed (filtered) log lines -->
+            <input type="button" class="button_gen preset-btn" style="margin-left: 16px;" onclick="exportFilteredLog()" value="Export" title="Save the log lines currently displayed (with the active filter) to a text file">
         </div>
     </fieldset>
 </form>
@@ -77,6 +98,10 @@
         <label>Filter Text</label><input type="text" id="m_preset_text">
         <div style="margin-top:15px; color:#FFF; font-size:12px;">
             <input type="checkbox" id="m_preset_default"> <label for="m_preset_default">Load automatically</label>
+        </div>
+        <!-- v1.4.0 - per-preset case matching -->
+        <div style="margin-top:8px; color:#FFF; font-size:12px;">
+            <input type="checkbox" id="m_preset_matchcase" checked> <label for="m_preset_matchcase">Match case</label>
         </div>
         <div class="modal-btn-group">
             <input type="button" class="button_gen" onclick="closePresetModal()" value="Cancel">

@@ -1,23 +1,27 @@
 # ModSyslogUI - Customize router's "System Log" page with custom filtering capabilities
 ## About:
 The default filtering capabilities of what is <ins>displayed</ins> on the System Log page of the router is limited to hardcoded text strings
-in a file called "logFilter.json". This script adds a capability to edit that file to your likings. 
+in a file called "logFilter.json". This script adds a capability to edit that file to your likings.
 
 This script also updates the System Log page of the Router UI to include dynamic filtering capabilities to:
-   - Include all log records, which is the default function, including exclusions noted in logFilter.json  
-   - Include only log records containing the string or strings of text you chose (separate each by a comma)  
-     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)  
-   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)  
+   - Include all log records, which is the default function, including exclusions noted in logFilter.json
+   - Include only log records containing the string or strings of text you chose (separate each by a comma)<br>
+     Example - to include all Skynet and Diversion log records only, enter Skynet,Diversion (no spaces after comma)
+   - Exlude all log records containing the string or strings of text you chose (separate each by a comma)<br>
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
-   - Use simple logical operators AND or OR or AND NOT to filter the log records to display  
+   - Use simple logical operators AND or OR or AND NOT to filter the log records to display<br>
      Example - only show kernel error msgs (e.g., Jan  8 00:02:32 kernel: WLC_SCB_DEAUTHORIZE error (-30), enter kernel AND error
-   - Filter for a tag, combined with a simple logical (term AND term)
-     Example - find all kernel: tags with an ethernet port down, enter kernel: eth AND Down
+   - Filter by program tag for Scribe-style views (see [Scribe-style views](#scribe-style-views-tags) below)<br>
+     Example - find all kernel: records with an ethernet port down, enter kernel: eth AND Down
+   - Optionally ignore upper / lower case (uncheck **Match case**), e.g. error also matches ERROR and Error
+   - Save frequently used filters as Presets, with one optionally loading automatically
+   - Export the log records currently displayed (with the active filter applied) to a text file
 
 This script supports Asuswrt-Merlin firmware 3004.388.* and 3006.102.* and associated routers.
 
 *This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
-Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*  
+Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.<br>
+Scribe splits the log into separate files on the router; ModSyslogUI only filters what is displayed, so nothing extra is stored. Tags + Presets give you Scribe-like "views" of the one System Log.*
 
 __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOOSE ONE OR THE OTHER__
 
@@ -26,9 +30,9 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 - The script provides an interactive manu of options to perform various script maintenance functions
 - Custom System Log filtering capabilities added with this script include:
 	1. Hardcoded Filtering - By default, the System Log page filters log records to display based on the contents of a "logFilter.json" file. This script includes an EDIT option that allows you to customize to your liking.
- 	2. Dynamic Filtering - The System Log page is modifed to allow you to interactively seltect which log records to INCLUDE or EXCLUDE, with the default action of filtering records based on the contents of the logFilter.json file 
+ 	2. Dynamic Filtering - The System Log page is modifed to allow you to interactively seltect which log records to INCLUDE or EXCLUDE, with the default action of filtering records based on the contents of the logFilter.json file
 
-*Hardcoded Filtering changes are made from an SSH session to the router, and choosing option 5 from the modsyslogui menu*
+*Hardcoded Filtering changes are made from an SSH session to the router, and choosing option 4 (Edit) from the modsyslogui menu*
 
 
 ## Install:
@@ -37,11 +41,16 @@ __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOO
 SSH to the router and enter:
 
 ```Shell
-/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/master/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
+/usr/sbin/curl --retry 3 "https://raw.githubusercontent.com/kstamand/modsyslogui/develop/modsyslogui" -o "/tmp/modsyslogui" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install
 ```
 
+### Beta testing (develop branch)
+*For testers only - the develop branch contains code that is still being tested.*
+
+Once installed, switch to the develop branch with menu option **(sd)** or `modsyslogui develop`. Switch back to the stable release at any time with menu option **(sm)** or `modsyslogui main`.
+
 ## Configuration:
-*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 5 from the modsyslogui menu.* 
+*No configuration is required, unless you want to edit the default contents of the "logFilter.json" file --> option 4 (Edit) from the modsyslogui menu.*
 
 The default contents of the logFilter.json file are:
 
@@ -79,11 +88,11 @@ ALL System log records, generally start with a date and a tag. Examples;
   - wireless events (wlcevented)
   - ethernet connected devices powering on or shutting down (entering listening | learning | forwarding state)
   - specific tags /addon script names (e.g., log records starting with modsyslogui)
-	 
+
 ## Command line usage:
 Once installed, from a terminal ssh session into the router, enter the command **modsyslogui** and choose from one of the menu options:
 
-<img width="642" height="453" alt="image" src="https://github.com/user-attachments/assets/3904ff9c-d1dd-4927-a54b-8d9ff2796222" />
+<img width="642" alt="modsyslogui menu" src="images/menu.png" />
 
 
 To skip displaying the menu, you can run select options directly by running **modsyslogui** with one of the following parameters;
@@ -93,16 +102,46 @@ To skip displaying the menu, you can run select options directly by running **mo
 	- modsyslogui enable
 	- modsyslogui disable
 	- modsyslogui uninstall
+	- modsyslogui main      (switch to the stable release branch)
+	- modsyslogui develop   (switch to the develop / beta branch - testers only)
 
 ## System Log page usage:
-The System Log page is customized by this script to add a dynamic **Log Filtering Option** box, where you have three options:
-1. Show all log records (default option) - nothing need be entered in the dialog box under the three options. All system log records are displayed, minus those log records matching one of the strings in the logFilter.json file
-2. Include only - enter a string or series of strings separated by a comma, with no spaces, to only show log records matching the string(s)
-3. Exclude containing - enter a string or series of strings separated by a comma, with no spaces, to exclude log records matching the string(s)
-4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT and term any string
-5.  Presets - a drop down list of previously saved filter actions (Inlcude, Exclude, Logical) and filter text, with the option to select ONE as the default to automatically load and run on System Log page load
+The System Log page is customized by this script to add a dynamic **Log Filtering Engine** box, with the following options:
+1. Show all log records (default option) - nothing need be entered in the dialog box under the options. All system log records are displayed, minus those log records matching one of the strings in the logFilter.json file
+2. Include only - enter a string or series of strings separated by a comma, to only show log records matching the string(s)
+3. Exclude containing - enter a string or series of strings separated by a comma, to exclude log records matching the string(s)
+4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT (UPPERCASE, one operator per filter). Each *term* may be several words separated by spaces, and ALL of them must appear in the record (e.g. `kernel: Tuxera AND HFS+` = has `kernel:` and `Tuxera`, and has `HFS+`)
+5. Match case - checked (default) matches upper / lower case exactly. Uncheck to ignore case for Include, Exclude, and Logical terms (operators must still be UPPERCASE)
+6. Presets - a drop down list of previously saved filter actions (Include, Exclude, Logical), filter text and Match case setting, with the option to select ONE as the default to automatically load and run on System Log page load
+7. Export - saves the log records currently displayed (with the active filter applied) to a text file named `syslog_<filter>_<YYYYMMDD-HHMMSS>.txt`, using your browser's normal download (your Downloads folder, or a "Save As" prompt if your browser is set to ask). The file starts with a short header (router model / firmware, export time, filter used, line count). The page's stock **Save** button still saves the full, unfiltered log
+   - To choose where the file is saved, set your browser to ask for a download location: Safari - Settings > General > File download location > *Ask for each download*; Chrome / Edge - *Ask where to save each file before downloading*; Firefox - *Always ask you where to save files*
 
-<img width="777" height="772" alt="image" src="https://github.com/user-attachments/assets/64f8cec2-ab94-48ed-b3b9-1a6b1c767722" />
+While Auto refresh is on, the log only jumps to the newest records if you are already at the bottom, so you can scroll up and read older records without being interrupted.
+
+### Scribe-style views (tags)
+System Log records look like `Nov 10 19:30:05 kernel: eth7: link down` - a timestamp, the **program tag** (`kernel:`), often a **sub-tag** (`eth7:`), then the message.
+
+A word ending in `:` is treated as a **tag**: it matches only the program tag (any `[pid]` is ignored, so `dnsmasq-dhcp:` matches `dnsmasq-dhcp[1234]:`) or the sub-tag right after it - not the same text somewhere in the message. Tags apply to:
+- Include / Exclude terms that are only a tag (e.g. `kernel:`)
+- the first word of each side of a Logical filter (e.g. `kernel: eth AND Down`)
+
+To match the text anywhere in the record instead, leave off the `:` (e.g. `eth7`).
+
+| Scribe | ModSyslogUI equivalent |
+|---|---|
+| A separate log / tab per program | Include `kernel:` (or several: `dnsmasq:, dnsmasq-dhcp:`) |
+| A tab plus a condition | Logical `kernel: Tuxera AND HFS+` |
+| Your set of tabs | Presets - save one per view |
+| Default tab | The Preset marked **Load automatically** |
+
+Ready-made examples:
+- All kernel records: Include `kernel:`
+- DNS / DHCP: Include `dnsmasq:, dnsmasq-dhcp:`
+- Kernel records except one interface: Logical `kernel: AND NOT eth7:`
+- Ethernet ports going down: Logical `kernel: eth AND Down`
+- Hide wireless event noise: Exclude `wlceventd:, hostapd:`
+
+<img width="777" alt="System Log page with ModSyslogUI filtering" src="images/syslog.png" />
 
 
 ## Support
@@ -111,12 +150,13 @@ See [SmallNetBuilder Forum](https://www.snbforums.com/threads/modsyslogui-v1-0-0
 ## Debuging
 In the event script or UI filtering options do not work, collect and provide the following information in the ModSyslogUI thread of snbforums:
 - screenshot of error either on the UI or script from SSH session
-- if the modsyslogui shell script is generating an error, enable the DEBUG option to capture the error, then attached the MODSYSLOGUI_DEBUB.TXT to your post in the ModSyslogUI thread of snbforums
+- if the modsyslogui shell script is generating an error, capture the output from the SSH session, plus any modsyslogui records from the System Log (Include filter: modsyslogui)
 - if the UI filtering is not working as expected, open the browser's DEV TOOLS (you may need to enable that first) and capture a screenshot of any CONSOLE errors, then post them in the ModSyslogUI thread of snbforums
-- in certain instances, I may ask for a copy of the /jffs/addons/modsyslogui/Main_LogStatus_Content.asp file (all the filtering magic happens here). In that event, run the following command and attache the log.txt to ModSyslogUI thread explaining the issue
+- if the System Log page shows no filtering box after a firmware update, the script may have found the stock page in an unexpected format and left it unmodified on purpose. Check the System Log for modsyslogui [ERROR] records and post them in the ModSyslogUI thread of snbforums
+- in certain instances, I may ask for a copy of the /tmp/Main_LogStatus_Content.asp file (all the filtering magic happens here). In that event, run the following command and attach the log.txt to ModSyslogUI thread explaining the issue
 
 ```Shell
-cat /jffs/addons/modsyslogui/Main_LogStatus_Content.asp > log.txt
+cat /tmp/Main_LogStatus_Content.asp > log.txt
 ```
 
 ## License
