@@ -4,6 +4,7 @@ name: Release - update main references and tag
 #   1. modsyslogui:  SCRIPT_BRANCH="develop"  ->  SCRIPT_BRANCH="main"
 #   2. README.md:    GitHub links .../develop/... -> .../main/...  (raw install link, blob/tree links)
 #   3. Tags the release with SCRIPT_VERSION from the script (e.g. v1.4.0)
+#   4. Creates the GitHub Release (marked Latest) with that version's changelog.txt entry as notes
 #
 # Can also be started by hand from the Actions tab ("Run workflow") or with
 #   gh workflow run update-main.yml -f dry_run=true -f source_ref=develop
@@ -78,6 +79,33 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes from changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          NOTES="$RUNNER_TEMP/release_notes.md"
+          # this version's changelog entry: from the "vX.Y.Z (" line up to the next version line
+          awk -v v="$VERSION" 'index($0, v" ")==1 {p=1; next} p && /^v[0-9]+\.[0-9]+\.[0-9]+ / {exit} p' changelog.txt > "$RUNNER_TEMP/changes.txt"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/changes.txt"; then
+            echo "::error::changelog.txt entry for $VERSION is empty"; exit 1
+          fi
+          {
+            echo "## Install / update"
+            echo "- New install (SSH to the router):"
+            echo '  ```'
+            echo "  /usr/sbin/curl --retry 3 \"https://raw.githubusercontent.com/$REPO/main/modsyslogui\" -o \"/tmp/modsyslogui\" && chmod +x /tmp/modsyslogui && sh /tmp/modsyslogui install"
+            echo '  ```'
+            echo '- Existing install: `modsyslogui update`, or let amtm update it'
+            echo ""
+            echo "## Changes"
+            echo '```'
+            cat "$RUNNER_TEMP/changes.txt"
+            echo '```'
+          } > "$NOTES"
+          echo "----- release notes -----"
+          cat "$NOTES"
+
       - name: Point branch references to main
         run: |
           set -eu
@@ -111,6 +139,19 @@ jobs:
           # atomic: main and the tag are pushed together, or neither is
           git push --atomic origin HEAD:main "refs/tags/$VERSION"
 
+      - name: Create GitHub Release
+        if: env.DRY_RUN != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          # becomes the "Latest" release; the tag already exists (pushed above)
+          if ! gh release create "$VERSION" --verify-tag --title "ModSyslogUI $VERSION" --notes-file "$RUNNER_TEMP/release_notes.md"; then
+            echo "::error::Tag $VERSION was pushed, but creating the Release failed. Create it by hand: gh release create $VERSION --verify-tag --notes-file <notes>"
+            exit 1
+          fi
+
       - name: Summary
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -122,7 +163,7 @@ jobs:
               git --no-pager diff -- modsyslogui README.md
               echo '```'
             else
-              echo "### Released $VERSION - main updated and tagged"
+              echo "### Released $VERSION - main updated, tagged, and GitHub Release created"
               echo '```'
               git --no-pager show --stat --oneline HEAD
               echo '```'
