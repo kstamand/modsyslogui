@@ -23,6 +23,7 @@ v1.4.0 (11-Nov-2026)
   - Fixed:   Script - firmware / JFFS support check never ran during install
   - Fixed:   Script - branch switch back to stable branch (typo); branch renamed master -> main ('master' argument still accepted)
   - Fixed:   Script - install without a terminal no longer loops in the menu; screen only cleared in interactive sessions
+  - Updated: Script - syslog records no longer include console indentation / "- " bullets; page rebuilds no longer log a misleading "Removing filtering" step
   - Fixed:   Script - misc. (custom_settings version not saved on install, undefined name in uninstall messages, syntax error in argument check, echo -e)
   - Fixed:   Presets - Save / Edit silently failed after updating from v1.3.0 (updater left preset_manager.sh without execute permission); repaired automatically on start
   - Updated: Script - service-event now runs preset_manager.sh via "sh" (existing line migrated once), so file permissions can no longer break presets

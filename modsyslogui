@@ -125,7 +125,8 @@ log_msg() {
             $display_color "$msg"
         fi
     else
-        logger -t "$LOG_TAG" "$msg"
+        # v1.4.0 - drop the console indentation / "- " bullet in syslog records
+        logger -t "$LOG_TAG" "$(printf '%s' "$msg" | sed 's/^ *- *//; s/^ *//')"
     fi
 }
 
@@ -460,7 +461,7 @@ Verify_Syslog_Asp() {
 }
 
 Mod_Syslog_Asp() {
-    # Parameters: $1 install or uninstall
+    # Parameters: $1 install or uninstall; $2 (optional) quiet = no progress message (v1.4.0)
     case $1 in
         install)
             ##-------------------------------------------------------------------##
@@ -468,7 +469,7 @@ Mod_Syslog_Asp() {
             ## The old marker cleanup never matched, so a second enable doubled  ##
             ## the inserted code and stacked a second bind mount.                ##
             ##-------------------------------------------------------------------##
-            Mod_Syslog_Asp uninstall >/dev/null 2>&1   # unmount (all) + remove any previous custom page
+            Mod_Syslog_Asp uninstall quiet   # unmount (all) + remove any previous custom page, without logging
             log_msg "Green" "   - Copying Asus's default Syslog ASP page, for adding in custom filtering capabilities"
             cp "${DEFAULT_SYSLOG_ASP_FILE}" "${CUSTOM_SYSLOG_ASP_FILE}"
             # v1.4.0 - make sure the stock page still has the text this script edits around
@@ -497,7 +498,7 @@ Mod_Syslog_Asp() {
             mount -o bind "${CUSTOM_SYSLOG_ASP_FILE}" "${DEFAULT_SYSLOG_ASP_FILE}"
         ;;
         uninstall)
-            log_msg "Green" "   - Removing filtering capabilities from System Log UI page"
+            [ "$2" = "quiet" ] || log_msg "Green" "   - Removing filtering capabilities from System Log UI page"
             ##----------------------------------------------##
             ## v1.0.2 unmount customized System Log UI page ##
             ##----------------------------------------------##
