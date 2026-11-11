@@ -1,4 +1,11 @@
 v1.4.0 (11-Nov-2026)
+  Changes in behavior (no action needed; listed so they are not a surprise):
+  - Tags are now precise: a word ending in ":" (e.g. kernel:, eth7:) only matches the program tag or the sub-tag after it.
+    To match that text anywhere in a record, leave off the ":" (e.g. eth7).
+  - Logical mode: a filter with more than one operator now shows a syntax message instead of silently ignoring part of it.
+  - Downgrading to v1.3.0 after saving presets in v1.4.0: presets load fine, but v1.3.0's "Load automatically"
+    can change the wrong field on the new 6-field preset lines; re-check your default preset after a downgrade.
+
   - Added:   SyslogUI - Export button: saves the currently displayed (filtered) log records to a text file, with a header (router, time, filter, line count)
   - Added:   SyslogUI - Match case option (default on); uncheck for case-insensitive Include / Exclude / Logical terms
   - Updated: SyslogUI - tags (a word ending in ":") now match only the program tag or the sub-tag after it ([pid] ignored), not the same text inside a message; leave off the ":" to match anywhere
