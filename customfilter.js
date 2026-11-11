@@ -138,12 +138,42 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
     }
 
     /**
-     * matchWords: line contains EVERY word in a term set (Array.every).
-     * v1.4.0 - defined once, instead of once per log line.
+     * v1.4.0 - TAG MATCHING (Scribe-style views)
+     * A word ending in ':' (e.g. kernel:, dnsmasq-dhcp:, eth7:) is a TAG. It matches the
+     * program tag right after the timestamp ([pid] ignored), or the sub-tag right after that:
+     *   "Nov 10 19:30:05 kernel: eth7: link down"    -> tags kernel:  eth7:
+     *   "Nov 10 19:35:07 dropbear[28824]: Child ..."  -> tag  dropbear:
+     * Where it applies:
+     *   - Logical: the FIRST word of each side of the operator (kernel: Tuxera AND HFS+)
+     *   - Include/Exclude: a term that is only a tag (kernel:, dnsmasq:)
+     * Lines not in the standard format fall back to "tag appears anywhere in the line".
+     * Every other word must simply appear somewhere in the line (spaces = ALL of these words).
      */
-    var matchWords = function(l, words) {
-        return words.every(function(w) { return l.indexOf(w) !== -1; });
+    var TAG_RE = /^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+([^\s\[:]+)(?:\[\d+\])?:(?:\s+([^\s:]+):(?=\s|$))?/;
+    var isTag = function(w) { return w.length > 1 && /^[^\s:]+:$/.test(w); };
+    var makeSet = function(words) {
+        var set = { tag: null, words: words.slice() };
+        if (set.words.length && isTag(set.words[0])) set.tag = set.words.shift();
+        return set;
     };
+    var isEmptySet = function(set) { return set.tag === null && set.words.length === 0; };
+    var lineTags = function(l) {
+        var m = TAG_RE.exec(l);
+        return m ? [norm(m[1] + ":"), m[2] ? norm(m[2] + ":") : ""] : null;
+    };
+    var matchSet = function(cmp, tags, set) {
+        if (set.tag !== null) {
+            var tagOk = tags ? (tags[0] === set.tag || tags[1] === set.tag) : cmp.indexOf(set.tag) !== -1;
+            if (!tagOk) return false;
+        }
+        return set.words.every(function(w) { return cmp.indexOf(w) !== -1; });
+    };
+
+    var set1 = makeSet(term1), set2 = makeSet(term2);
+    var termSets = (terms || []).map(function(t) {
+        return isTag(t) ? { tag: t, words: [] } : { tag: null, words: [t] };
+    });
+    var needTags = set1.tag !== null || set2.tag !== null || termSets.some(function(s) { return s.tag !== null; });
 
     /* --- Primary Processing Loop --- */
     for (var i = 0; i < _string.length; i++) {
@@ -164,21 +194,20 @@ if(!document.getElementById("auto_refresh").checked && !window.isManualFiltering
         var display = true;
         if (filterText !== "" && mode !== "ShowAll") {
             var cmp = norm(line);
+            var tags = needTags ? lineTags(line) : null;   // v1.4.0 - program / sub-tag of this line
             if (mode === "Include") {
-                display = terms.some(function(t) { return cmp.indexOf(t) !== -1; });
+                display = termSets.some(function(s) { return matchSet(cmp, tags, s); });
             } else if (mode === "Exclude") {
-                display = !terms.some(function(t) { return cmp.indexOf(t) !== -1; });
+                display = !termSets.some(function(s) { return matchSet(cmp, tags, s); });
             } else if (mode === "Logical") {
-                if (op === "") {
-                    display = matchWords(cmp, term1);
-                } else if (term2.length > 0) {
-                    var has1 = matchWords(cmp, term1);
-                    var has2 = matchWords(cmp, term2);
+                if (op === "" || isEmptySet(set2)) {
+                    display = matchSet(cmp, tags, set1);
+                } else {
+                    var has1 = matchSet(cmp, tags, set1);
+                    var has2 = matchSet(cmp, tags, set2);
                     if (op === "AND NOT") display = (has1 && !has2);
                     else if (op === "AND") display = (has1 && has2);
                     else if (op === "OR") display = (has1 || has2);
-                } else {
-                    display = matchWords(cmp, term1);
                 }
             }
         }

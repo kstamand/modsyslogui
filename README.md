@@ -11,8 +11,8 @@ This script also updates the System Log page of the Router UI to include dynamic
      Example - to exlcude all Skynet log records that where blocked, enter the string BLOCKED
    - Use simple logical operators AND or OR or AND NOT to filter the log records to display<br>
      Example - only show kernel error msgs (e.g., Jan  8 00:02:32 kernel: WLC_SCB_DEAUTHORIZE error (-30), enter kernel AND error
-   - Filter for a tag, combined with a simple logical (term AND term)
-     Example - find all kernel: tags with an ethernet port down, enter kernel: eth AND Down
+   - Filter by program tag for Scribe-style views (see [Scribe-style views](#scribe-style-views-tags) below)<br>
+     Example - find all kernel: records with an ethernet port down, enter kernel: eth AND Down
    - Optionally ignore upper / lower case (uncheck **Match case**), e.g. error also matches ERROR and Error
    - Save frequently used filters as Presets, with one optionally loading automatically
    - Export the log records currently displayed (with the active filter applied) to a text file
@@ -20,7 +20,8 @@ This script also updates the System Log page of the Router UI to include dynamic
 This script supports Asuswrt-Merlin firmware 3004.388.* and 3006.102.* and associated routers.
 
 *This script DOES NOT equal or replace the functionality that the SCRIBE addon provides.<br>
-Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.*
+Instead, it is a simpler lightweight addon that only utilizes the native capabilities of the router.<br>
+Scribe splits the log into separate files on the router; ModSyslogUI only filters what is displayed, so nothing extra is stored. Tags + Presets give you Scribe-like "views" of the one System Log.*
 
 __IT IS NOT RECOMMENDED TO INSTALL THIS SCRIPT AND SCRIBE AT THE SAME TIME. CHOOSE ONE OR THE OTHER__
 
@@ -109,13 +110,36 @@ The System Log page is customized by this script to add a dynamic **Log Filterin
 1. Show all log records (default option) - nothing need be entered in the dialog box under the options. All system log records are displayed, minus those log records matching one of the strings in the logFilter.json file
 2. Include only - enter a string or series of strings separated by a comma, to only show log records matching the string(s)
 3. Exclude containing - enter a string or series of strings separated by a comma, to exclude log records matching the string(s)
-4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT (UPPERCASE, one operator per filter) and term any string
+4. Logical - enter *term* OPERATOR *term*, where valid operators are AND | OR | AND NOT (UPPERCASE, one operator per filter). Each *term* may be several words separated by spaces, and ALL of them must appear in the record (e.g. `kernel: Tuxera AND HFS+` = has `kernel:` and `Tuxera`, and has `HFS+`)
 5. Match case - checked (default) matches upper / lower case exactly. Uncheck to ignore case for Include, Exclude, and Logical terms (operators must still be UPPERCASE)
 6. Presets - a drop down list of previously saved filter actions (Include, Exclude, Logical), filter text and Match case setting, with the option to select ONE as the default to automatically load and run on System Log page load
 7. Export - saves the log records currently displayed (with the active filter applied) to a text file named `syslog_<filter>_<YYYYMMDD-HHMMSS>.txt`, using your browser's normal download (your Downloads folder, or a "Save As" prompt if your browser is set to ask). The file starts with a short header (router model / firmware, export time, filter used, line count). The page's stock **Save** button still saves the full, unfiltered log
    - To choose where the file is saved, set your browser to ask for a download location: Safari - Settings > General > File download location > *Ask for each download*; Chrome / Edge - *Ask where to save each file before downloading*; Firefox - *Always ask you where to save files*
 
 While Auto refresh is on, the log only jumps to the newest records if you are already at the bottom, so you can scroll up and read older records without being interrupted.
+
+### Scribe-style views (tags)
+System Log records look like `Nov 10 19:30:05 kernel: eth7: link down` - a timestamp, the **program tag** (`kernel:`), often a **sub-tag** (`eth7:`), then the message.
+
+A word ending in `:` is treated as a **tag**: it matches only the program tag (any `[pid]` is ignored, so `dnsmasq-dhcp:` matches `dnsmasq-dhcp[1234]:`) or the sub-tag right after it - not the same text somewhere in the message. Tags apply to:
+- Include / Exclude terms that are only a tag (e.g. `kernel:`)
+- the first word of each side of a Logical filter (e.g. `kernel: eth AND Down`)
+
+To match the text anywhere in the record instead, leave off the `:` (e.g. `eth7`).
+
+| Scribe | ModSyslogUI equivalent |
+|---|---|
+| A separate log / tab per program | Include `kernel:` (or several: `dnsmasq:, dnsmasq-dhcp:`) |
+| A tab plus a condition | Logical `kernel: Tuxera AND HFS+` |
+| Your set of tabs | Presets - save one per view |
+| Default tab | The Preset marked **Load automatically** |
+
+Ready-made examples:
+- All kernel records: Include `kernel:`
+- DNS / DHCP: Include `dnsmasq:, dnsmasq-dhcp:`
+- Kernel records except one interface: Logical `kernel: AND NOT eth7:`
+- Ethernet ports going down: Logical `kernel: eth AND Down`
+- Hide wireless event noise: Exclude `wlceventd:, hostapd:`
 
 <img width="777" alt="System Log page with ModSyslogUI filtering" src="images/syslog.png" />
 

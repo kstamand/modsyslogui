@@ -1,6 +1,8 @@
 v1.4.0 (11-Nov-2026)
   - Added:   SyslogUI - Export button: saves the currently displayed (filtered) log records to a text file, with a header (router, time, filter, line count)
   - Added:   SyslogUI - Match case option (default on); uncheck for case-insensitive Include / Exclude / Logical terms
+  - Updated: SyslogUI - tags (a word ending in ":") now match only the program tag or the sub-tag after it ([pid] ignored), not the same text inside a message; leave off the ":" to match anywhere
+  - Updated: SyslogUI / README - help and README explain multi-word Logical terms, tags, and Scribe-style views with Presets
   - Added:   Presets - optional 6th field for Match case (existing presets load as case-sensitive)
   - Fixed:   SyslogUI - Logical mode false "Syntax" error on terms containing AND / OR / NOT (e.g. ERROR, FORWARD, NOTICE)
   - Updated: SyslogUI - Logical mode reports more than one operator as a syntax error (previously ignored part of the filter)
