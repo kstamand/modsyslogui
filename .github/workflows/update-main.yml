@@ -1,0 +1,130 @@
+name: Release - update main references and tag
+
+# Runs when a pull request from `develop` is MERGED into `main`:
+#   1. modsyslogui:  SCRIPT_BRANCH="develop"  ->  SCRIPT_BRANCH="main"
+#   2. README.md:    GitHub links .../develop/... -> .../main/...  (raw install link, blob/tree links)
+#   3. Tags the release with SCRIPT_VERSION from the script (e.g. v1.4.0)
+#
+# Can also be started by hand from the Actions tab ("Run workflow") or with
+#   gh workflow run update-main.yml -f dry_run=true -f source_ref=develop
+# A dry run only prints what WOULD change; it never commits, tags, or pushes.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run - show changes only, no commit / tag / push"
+        type: boolean
+        default: true
+      source_ref:
+        description: "Branch to check out (use develop to preview a release; real runs must use main)"
+        type: string
+        default: main
+
+permissions:
+  contents: write
+
+# never run two releases at the same time
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+       github.event.pull_request.head.ref == 'develop')
+    runs-on: ubuntu-latest
+
+    env:
+      # PR merge = real run; manual run = whatever the dry_run box says
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+      SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || 'main' }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - name: Safety check
+        run: |
+          echo "event=${{ github.event_name }}  dry_run=$DRY_RUN  source_ref=$SOURCE_REF"
+          if [ "$DRY_RUN" != "true" ] && [ "$SOURCE_REF" != "main" ]; then
+            echo "::error::A real (non-dry) run must use source_ref=main"
+            exit 1
+          fi
+
+      - name: Check out ${{ env.SOURCE_REF }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_REF }}
+          fetch-depth: 0          # full history + tags, needed for the tag check
+
+      - name: Read version and check changelog / tag
+        id: version
+        run: |
+          set -eu
+          VERSION=$(grep -m1 -oE '^readonly SCRIPT_VERSION="v[0-9]+\.[0-9]+\.[0-9]+"' modsyslogui | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read SCRIPT_VERSION from modsyslogui"; exit 1
+          fi
+          echo "Version: $VERSION"
+          if ! grep -q "^$VERSION " changelog.txt; then
+            echo "::error::changelog.txt has no entry starting with '$VERSION '"; exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null; then
+            echo "::error::Tag $VERSION already exists - bump SCRIPT_VERSION before releasing"; exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Point branch references to main
+        run: |
+          set -eu
+          # script: keep anything after the value (the trailing comment)
+          sed -i -E 's/^SCRIPT_BRANCH="develop"/SCRIPT_BRANCH="main"/' modsyslogui
+          # README: raw install link + any blob / tree links
+          sed -i -E "s#(raw\.githubusercontent\.com/$REPO)/develop/#\1/main/#g; s#(github\.com/$REPO/(blob|tree))/develop/#\1/main/#g" README.md
+
+          # verify - fail loudly instead of releasing with develop references
+          grep -q '^SCRIPT_BRANCH="main"' modsyslogui || { echo "::error::SCRIPT_BRANCH is not main"; exit 1; }
+          if grep -nE "raw\.githubusercontent\.com/$REPO/develop/|github\.com/$REPO/(blob|tree)/develop/" README.md; then
+            echo "::error::README.md still has develop links (listed above)"; exit 1
+          fi
+
+          echo "----- changes -----"
+          git --no-pager diff
+
+      - name: Commit, tag and push
+        if: env.DRY_RUN != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git add modsyslogui README.md
+            git commit -m "Release $VERSION: point branch references to main"
+          fi
+          git tag -a "$VERSION" -m "ModSyslogUI $VERSION"
+          # atomic: main and the tag are pushed together, or neither is
+          git push --atomic origin HEAD:main "refs/tags/$VERSION"
+
+      - name: Summary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "### Dry run for $VERSION (source: $SOURCE_REF) - nothing was committed, tagged, or pushed"
+              echo '```diff'
+              git --no-pager diff -- modsyslogui README.md
+              echo '```'
+            else
+              echo "### Released $VERSION - main updated and tagged"
+              echo '```'
+              git --no-pager show --stat --oneline HEAD
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
