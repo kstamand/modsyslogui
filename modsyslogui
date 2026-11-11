@@ -158,7 +158,7 @@ Press_Enter(){
 Show_Logo(){
     local str_branch str_version left right upper_branch
 
-    upper_branch=$(echo "$SCRIPT_BRANCH" | tr '[:lower:]' '[:upper:]')
+    upper_branch=$(echo "$SCRIPT_BRANCH" | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')   # v1.4.0 - busybox tr has no [:lower:] classes
     # Define the color for the branch based on the repo status
    if [ "$SCRIPT_BRANCH" = "main" ]; then
         str_branch="${GREEN_TEXT}${upper_branch}${RESET}"
