@@ -1,3 +1,7 @@
+v1.4.1 (12-Nov-2026)
+  - Fixed:   Script - amtm automatic updates no longer print messages (e.g. "Repaired missing execute permission on preset_manager.sh") or clear the screen inside amtm; amtm runs now log to syslog
+  - Updated: Script - preset_manager.sh permission repair is always logged to syslog only
+
 v1.4.0 (11-Nov-2026)
   Changes in behavior (no action needed; listed so they are not a surprise):
   - Tags are now precise: a word ending in ":" (e.g. kernel:, eth7:) only matches the program tag or the sub-tag after it.
