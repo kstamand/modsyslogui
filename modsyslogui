@@ -13,7 +13,7 @@
 #----------------------------------------------------------------#
 #----------------------------------------------------------------------------------------------------#
 # Author:       kstamand
-# Date:         2026-11-11
+# Date:         2026-11-12
 # Synopsis:     add filtering functionality to routers system log page
 # Description:  Installs/uninstals filtering capabilities to the router System Log UI page
 # Reference:    This script is based on Asuswrt-merlin third party addon api
@@ -27,7 +27,7 @@
 
 ### Start of Script Variables
 readonly SCRIPT_NAME="modsyslogui"
-readonly SCRIPT_VERSION="v1.4.0"
+readonly SCRIPT_VERSION="v1.4.1"
 readonly scriptVersRegExp="v[0-9]{1,2}([.][0-9]{1,2})([.][0-9]{1,2})"
 readonly SCRIPT_NAME_DISPLAY="ModSyslogUI"
 SCRIPT_BRANCH="main"     # v1.3.0 - added git repo switching ability (main and develop)
@@ -120,10 +120,10 @@ log_msg() {
     # $1 = display color; $2 = msg
     display_color="$1"
     msg="$2"
-    if [ "$mode" = "interactive" ]; then
-        if ! $AMTMUPDATE_RUN_FLAG; then   # v1.2.0 skip displaying progress info if called from amtm (amtmupdate)
-            $display_color "$msg"
-        fi
+    # v1.4.1 - console only for interactive, non-amtm runs; amtm runs (amtmupdate / postamtmupdate)
+    #+ go to syslog so nothing is printed into amtm's screen
+    if [ "$mode" = "interactive" ] && ! $AMTMUPDATE_RUN_FLAG; then
+        $display_color "$msg"
     else
         # v1.4.0 - drop the console indentation / "- " bullet in syslog records
         logger -t "$LOG_TAG" "$(printf '%s' "$msg" | sed 's/^ *- *//; s/^ *//')"
@@ -930,10 +930,16 @@ Toggle_Amtmupdate() {
 ###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###---###
 ## Script Mainline
 
+# v1.4.1 - runs started by amtm (including the re-exec after an amtm update) stay quiet:
+#+ no screen clear, and log_msg output goes to syslog instead of amtm's screen
+case "${1:-}" in
+    amtmupdate|postamtmupdate) AMTMUPDATE_RUN_FLAG=true ;;
+esac
+
 # Detect if script is run from an SSH shell interactively or from the WebUI (unattended)
 if tty >/dev/null 2>&1; then
     mode="interactive"
-    clear   # v1.4.0 - only clear the screen for interactive sessions
+    $AMTMUPDATE_RUN_FLAG || clear   # v1.4.0 - only clear the screen for interactive sessions (v1.4.1 - not under amtm)
 else
     mode="unattended"
 fi
@@ -994,7 +1000,8 @@ fi
 ## updater re-executes this script.                                      ##
 ##-----------------------------------------------------------------------##
 if [ -f "$PRESET_MANAGER" ] && [ ! -x "$PRESET_MANAGER" ]; then
-    chmod 755 "$PRESET_MANAGER" && log_msg "Yellow" "   - Repaired missing execute permission on $(basename "$PRESET_MANAGER")"
+    # v1.4.1 - background maintenance: always syslog, never the console (was shown in amtm's screen)
+    chmod 755 "$PRESET_MANAGER" && logger -t "$LOG_TAG" "Repaired missing execute permission on $(basename "$PRESET_MANAGER")"
 fi
 
 ##-------------------------------------------------------------------------------------------##
